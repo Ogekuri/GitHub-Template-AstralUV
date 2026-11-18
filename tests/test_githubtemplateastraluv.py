@@ -257,28 +257,6 @@ def test_upgrade_develop_on_linux_executes_exact_uv_install(isolated_home):
     )
 
 
-def test_upgrade_dev_alias_on_linux_executes_exact_uv_install(
-    isolated_home,
-):
-    """@brief TST-014 (REQ-032/REQ-034): `--dev` alias selects develop argv.
-
-    @details expected_output = exit code 0 and one subprocess.run call with
-            UPGRADE_DEVELOP_COMMAND; expected_exception = none.
-    """
-    with mock.patch.object(version_check, "run_version_check"):
-        with mock.patch.object(management, "is_linux", return_value=True):
-            with mock.patch.object(
-                management.subprocess,
-                "run",
-                return_value=mock.Mock(returncode=0),
-            ) as run_mock:
-                exit_code = core.main(["--upgrade", "--dev"])
-    assert exit_code == 0
-    run_mock.assert_called_once_with(
-        management.UPGRADE_DEVELOP_COMMAND, check=False
-    )
-
-
 def test_uninstall_on_linux_executes_exact_uv_uninstall(isolated_home):
     """@brief TST-003: `--uninstall` spawns the exact REQ-005 argv on Linux.
 

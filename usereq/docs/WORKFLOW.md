@@ -136,7 +136,7 @@ no explicit threads detected.
         - `management._management_entry(...)`: render one aligned command
           line [`src/githubtemplateastraluv/management.py`]
     - `management.cmd_upgrade(...)`: Linux-only `uv tool install` from
-      PyPI, or from GitHub for the `--develop` / `--dev` variant, with
+      PyPI, or from GitHub for the `--develop` variant, with
       manual-command fallback
       [`src/githubtemplateastraluv/management.py`]
       - `management.is_linux(...)`: platform check

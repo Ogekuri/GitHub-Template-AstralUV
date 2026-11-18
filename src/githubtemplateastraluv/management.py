@@ -131,8 +131,8 @@ def cmd_upgrade(develop: bool = False) -> int:
              process spawns; a warning plus the matching manual command
              print instead (REQ-004, REQ-033).
     @param develop {bool} True selects the GitHub development source
-           (`--upgrade --develop` / `--upgrade --dev`); False selects the
-           PyPI source (default).
+           (`--upgrade --develop`); False selects the PyPI source
+           (default).
     @return {int} 0 on manual fallback or successful subprocess;
             otherwise the `uv` process exit code.
     @satisfies REQ-003 REQ-004 REQ-032 REQ-033 CTN-009

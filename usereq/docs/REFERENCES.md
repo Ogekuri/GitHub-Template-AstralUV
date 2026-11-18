@@ -438,7 +438,7 @@ from githubtemplateastraluv import (
 
 ### fn `def main(argv: list[str] | None = None) -> int` (L22-75)
 - @brief Execute the gated version check, then dispatch commands.
-- @details Dispatch order: `--help` or no arguments -> help screen; `--ver` / `--version` -> aligned three-row version report fetching PyPI and GitHub with the gate bypassed (REQ-002, REQ-027..REQ-031); then `--upgrade`, optionally with the `--develop` / `--dev` source modifier selecting the GitHub development source (REQ-032..REQ-034); then `--uninstall`; then the additive configuration CLI commands `--get`, `--set`, `--unset`, `--print-raw`, `--print`, `--info` (PRJ-006); unknown input falls back to the help screen. Non-forced invocations execute the gated PyPI check before dispatch (REQ-007). Existing management dispatch and observable behavior are unchanged by the configuration branches (REQ-016..REQ-021).
+- @details Dispatch order: `--help` or no arguments -> help screen; `--ver` / `--version` -> aligned three-row version report fetching PyPI and GitHub with the gate bypassed (REQ-002, REQ-027..REQ-031); then `--upgrade`, optionally with the `--develop` source modifier selecting the GitHub development source (REQ-032..REQ-034); then `--uninstall`; then the additive configuration CLI commands `--get`, `--set`, `--unset`, `--print-raw`, `--print`, `--info` (PRJ-006); unknown input falls back to the help screen. Non-forced invocations execute the gated PyPI check before dispatch (REQ-007). Existing management dispatch and observable behavior are unchanged by the configuration branches (REQ-016..REQ-021).
 - @param argv {list[str] | None} CLI arguments excluding the program name; None resolves to `sys.argv[1:]`.
 - @return {int} Process exit code: 0 on handled dispatch, or the return code of the spawned `uv` subprocess for `--upgrade` `--uninstall`, or 1 for configuration CLI failures (REQ-023).
 - @satisfies REQ-001 REQ-002 REQ-007 REQ-016 REQ-017 REQ-018 REQ-019 REQ-020 REQ-021 REQ-027 REQ-028 REQ-029 REQ-030 REQ-031 REQ-032 REQ-033 REQ-034 A-06 PRJ-006
@@ -497,7 +497,7 @@ import sys
 ### fn `def cmd_upgrade(develop: bool = False) -> int` (L124-148)
 - @brief Reinstall the tool via `uv tool install` on Linux.
 - @details On Linux the exact argv selected by `develop` executes through subprocess and its exit code propagates: UPGRADE_COMMAND for the PyPI source (REQ-003), UPGRADE_DEVELOP_COMMAND for the GitHub development source (REQ-032). On any other OS no process spawns; a warning plus the matching manual command print instead (REQ-004, REQ-033).
-- @param develop {bool} True selects the GitHub development source (`--upgrade --develop` / `--upgrade --dev`); False selects the PyPI source (default).
+- @param develop {bool} True selects the GitHub development source (`--upgrade --develop`); False selects the PyPI source (default).
 - @return {int} 0 on manual fallback or successful subprocess; otherwise the `uv` process exit code.
 - @satisfies REQ-003 REQ-004 REQ-032 REQ-033 CTN-009
 

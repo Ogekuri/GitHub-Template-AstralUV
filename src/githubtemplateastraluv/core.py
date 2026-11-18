@@ -26,7 +26,7 @@ def main(argv: list[str] | None = None) -> int:
              `--ver` / `--version` -> aligned three-row version report
              fetching PyPI and GitHub with the gate bypassed (REQ-002,
              REQ-027..REQ-031); then `--upgrade`, optionally with the
-             `--develop` / `--dev` source modifier selecting the GitHub
+             `--develop` source modifier selecting the GitHub
              development source (REQ-032..REQ-034); then `--uninstall`;
              then the additive configuration CLI commands `--get`,
              `--set`, `--unset`, `--print-raw`, `--print`, `--info`
@@ -55,7 +55,7 @@ def main(argv: list[str] | None = None) -> int:
         version_check.run_version_report(__version__)
         return 0
     if "--upgrade" in args:
-        develop = "--develop" in args or "--dev" in args
+        develop = "--develop" in args
         return management.cmd_upgrade(develop)
     if "--uninstall" in args:
         return management.cmd_uninstall()

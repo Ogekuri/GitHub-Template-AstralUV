@@ -68,7 +68,7 @@ Latest @ GitHub   : X3.Y3.Z3
 githubtemplateastraluv --upgrade
 
 # Upgrade to the latest GitHub tagged release (any branch)
-githubtemplateastraluv --upgrade --develop   # alias: --dev
+githubtemplateastraluv --upgrade --develop
 
 # Uninstall (Linux; prints the manual command elsewhere)
 githubtemplateastraluv --uninstall
@@ -124,8 +124,8 @@ uv tool install githubtemplateastraluv --force --from git+https://github.com/Oge
 githubtemplateastraluv --upgrade --develop
 ```
 
-`--upgrade --develop` (alias `--dev`) always downloads the most recent
-tagged build from GitHub, regardless of the branch it was tagged on
+`--upgrade --develop` always downloads the most recent tagged build
+from GitHub, regardless of the branch it was tagged on
 (`master`, `develop`, or any other branch). The `--ver` report shows the
 GitHub latest release in the `Latest @ GitHub` row.
 ```
