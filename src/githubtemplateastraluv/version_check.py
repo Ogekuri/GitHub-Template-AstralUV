@@ -4,9 +4,11 @@
 #        argument parsing.
 # @details Queries the GitHub releases endpoint with a hardcoded 2 s
 #          timeout, throttles repeats through an idle-time JSON cache under
-#          `$HOME`, and renders bright green (new version) or bright red
-#          (failure) notifications. Success refreshes the cache with a
-#          3600 s idle-delay; any failure backs off 86400 s.
+#          `$HOME`, and renders availability or failure notifications using
+#          the colors configured in the configuration subsystem (REQ-026),
+#          falling back to bright green / bright red schema defaults when
+#          configuration cannot be loaded. Success refreshes the cache with
+#          a 3600 s idle-delay; any failure backs off 86400 s.
 import json
 import os
 import time
@@ -14,6 +16,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
+
+from githubtemplateastraluv import config
 
 ## @brief GitHub API endpoint returning latest release metadata (REQ-009).
 _RELEASES_ENDPOINT = (
@@ -32,11 +36,10 @@ _CACHE_RELATIVE_PATH = (
     "githubtemplateastraluv",
     "check_version_idle-time.json",
 )
-## @brief ANSI SGR bright-green prefix for availability notes (DES-008).
-_ANSI_BRIGHT_GREEN = "\033[92m"
-## @brief ANSI SGR bright-red prefix for failure notes (DES-008).
-_ANSI_BRIGHT_RED = "\033[91m"
 ## @brief ANSI SGR reset suffix closing colored notifications.
+# @details Notification prefix colors are configured through the
+#          configuration subsystem (config.notification_colors, REQ-026);
+#          only the reset suffix stays local.
 _ANSI_RESET = "\033[0m"
 
 
@@ -177,15 +180,21 @@ def _print_colored(color: str, message: str) -> None:
     print(f"{color}{message}{_ANSI_RESET}")
 
 
-def _report_failure(check_epoch: float, error: BaseException) -> None:
-    """@brief Emit the bright-red failure note and write the 86400 s cache.
+def _report_failure(
+    check_epoch: float,
+    error: BaseException,
+    color: str,
+) -> None:
+    """@brief Emit the failure note and write the 86400 s cache.
 
+    @details The note renders with the configured error color (REQ-026).
     @param check_epoch {float} Epoch seconds of the failed attempt.
     @param error {BaseException} Encountered error rendered in the note.
+    @param color {str} ANSI SGR prefix for the failure note.
     @return {None}
-    @satisfies REQ-014 REQ-015 A-05
+    @satisfies REQ-014 REQ-015 REQ-026 A-05
     """
-    _print_colored(_ANSI_BRIGHT_RED, f"Version check failed: {error}")
+    _print_colored(color, f"Version check failed: {error}")
     _write_cache(_cache_path(), check_epoch, _IDLE_DELAY_FAILURE_SECONDS)
 
 
@@ -194,18 +203,21 @@ def run_version_check(installed_version: str, force: bool = False) -> None:
 
     @details Flow: cache read -> gate evaluation (skipped when `force`) ->
              HTTPS fetch -> version compare -> notify -> cache write.
-             Success always refreshes the cache with the 3600 s idle-delay
-             (REQ-013, A-04); fetch or parse failures print the bright-red
-             error and back off 86400 s (REQ-014, REQ-015, A-05). The call
+             Notification colors come from the configuration subsystem
+             with schema-default fallback (REQ-026). Success always
+             refreshes the cache with the 3600 s idle-delay (REQ-013,
+             A-04); fetch or parse failures print the configured error
+             note and back off 86400 s (REQ-014, REQ-015, A-05). The call
              always returns normally; callers continue parsing (A-06).
     @param installed_version {str} Installed version in `x.y.z` format.
     @param force {bool} True bypasses the idle-time gate (REQ-002,
            REQ-007).
     @return {None}
     @satisfies REQ-007 REQ-008 REQ-009 REQ-010 REQ-011 REQ-012 REQ-013
-               REQ-014 REQ-015
+               REQ-014 REQ-015 REQ-024 REQ-025 REQ-026
     """
     check_epoch = time.time()
+    colors = config.notification_colors()
     cache = _read_cache(_cache_path())
     if not force and not _gate_allows_request(cache, check_epoch):
         return
@@ -219,11 +231,11 @@ def run_version_check(installed_version: str, force: bool = False) -> None:
         OSError,
         ValueError,
     ) as error:
-        _report_failure(check_epoch, error)
+        _report_failure(check_epoch, error, colors["error_color"])
         return
     if available > installed:
         _print_colored(
-            _ANSI_BRIGHT_GREEN,
+            colors["new_version_color"],
             f"New version available: {latest_tag} "
             f"(installed version: {installed_version})",
         )
