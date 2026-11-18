@@ -295,12 +295,14 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
   validates the toolchain (`git`, `uv`), restores the canonical
   generated-path startup state by spawning `PROC:clean-tooling`
   (`bash scripts/clean.sh`, non-zero status aborts the build), deletes
-  only stale generated `dist/*.tar.gz` and `dist/*.whl` files, then
-  spawns `PROC:uv-build-runtime` and blocks until it ends; verifies that
+  every stale generated first-level `dist/*.tar.gz`, `dist/*.tgz`,
+  `dist/*.whl`, and `dist/*.zip` file (any version), then spawns
+  `PROC:uv-build-runtime` and blocks until it ends; verifies that
   at least one sdist and one wheel exist in `dist/`, prints the artifact
   summary, and terminates non-zero on toolchain, cleanup, build, or
-  verification failure (exit 0 on success). Generated release artifacts
-  are intentionally kept in `dist/`; the cleanup delegation guarantees
+  verification failure (exit 0 on success). The freshly generated sdist
+  and wheel remain in `dist/` as optional release outputs; the cleanup
+  delegation guarantees
   that two consecutive builds start from the identical state.
 - Internal Call-Trace Tree: no internal functions under `src/` (linear
   top-level shell script; no function definitions).
@@ -403,7 +405,7 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
 | 9 | `PROC:main` -> filesystem (configuration) | JSON file read/write with parent-directory creation, temporary-file fsync, and `os.replace` atomic swap | `$HOME/.config/githubtemplateastraluv/config.json` | validated one-section JSON object: `Notifications` holding `new_version_color` and `error_color` selection tokens; raw bytes for `--print-raw` | `src/githubtemplateastraluv/config.py` |
 | 10 | `PROC:main` -> stderr | `print(..., file=sys.stderr)` | console stderr | `Error: ...` configuration diagnostics with exit status 1 | `src/githubtemplateastraluv/config.py`, `src/githubtemplateastraluv/config_render.py` |
 | 11 | `PROC:build-tooling` -> `PROC:uv-build-runtime` | child-process spawn, stdio inherited | uv CLI `run --frozen --with build python -m build` | argv with repository-root cwd; generated sdist/wheel in `dist/`; `returncode` propagated | `scripts/build.sh` |
-| 12 | `PROC:build-tooling` -> filesystem (dist/) | targeted file delete plus build-backend writes | `<repo root>/dist/` | stale `*.tar.gz`/`*.whl` removal before build; fresh sdist and wheel preserved after build | `scripts/build.sh` |
+| 12 | `PROC:build-tooling` -> filesystem (dist/) | targeted file delete plus build-backend writes | `<repo root>/dist/` | stale `*.tar.gz`/`*.tgz`/`*.whl`/`*.zip` removal before build; fresh sdist and wheel preserved after build | `scripts/build.sh` |
 | 13 | `PROC:build-tooling` -> `PROC:clean-tooling` | child-process spawn (`bash scripts/clean.sh`), stdio inherited | pre-build repository cleanup | cleanup log lines on stdout; `returncode` gates the build (non-zero aborts) | `scripts/build.sh` |
 | 14 | `PROC:clean-tooling` -> filesystem (generated paths) | `rm -rf` removals of an inventory collected by a `./dist`-pruned `find` | `<repo root>/` | `.pytest_cache/`, `.ruff_cache/`, `.mypy_cache/`, `build/`, `.venv/`, `.coverage`/`.coverage.*`, `__pycache__/`, `*.egg-info/` removed; `dist/` and user content preserved | `scripts/clean.sh` |
 | 15 | `PROC:release-check` -> `PROC:uv-check-runtime` | sequential child-process spawn, stdio inherited | uv CLI `run` (compileall / pytest / out-of-tree build / artifact validator) | phase argv; `returncode` drives the fail-fast abort | `scripts/pre-release-check.sh` |

@@ -12,7 +12,7 @@
 # *          `.ruff_cache/`, `.mypy_cache/`), legacy build intermediates
 # *          (`build/`), the uv-managed virtual environment (`.venv/`),
 # *          and coverage data files (`.coverage`, `.coverage.*`).
-# *          Versioned release artifacts under `dist/` (DES-039, DES-042),
+# *          Versioned release artifacts under `dist/` (DES-042),
 # *          tracked files, untracked user files, and `$HOME` application
 # *          data are never touched, and no destructive git command is
 # *          executed (CTN-011). The cleanup is idempotent: absent targets
@@ -128,7 +128,7 @@ done
 # *          any depth; `-prune` yields matched directories without
 # *          descending into them, keeping the removal list stable under
 # *          deletion. The `./dist` prune guarantees that versioned release
-# *          artifacts (DES-039, DES-042) are never descended into, matched,
+# *          artifacts (DES-042) are never descended into, matched,
 # *          or removed (DES-050). The whole inventory is collected before
 # *          the first removal, so the traversal is never disturbed.
 # * @satisfies DES-046 DES-050

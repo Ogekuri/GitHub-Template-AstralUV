@@ -8,18 +8,20 @@
 # * @brief Reproducible release-packaging builder for githubtemplateastraluv.
 # * @details Validates the mandatory toolchain, restores the canonical
 # *          pre-build startup state by delegating to `scripts/clean.sh`,
-# *          removes stale generated distribution artifacts from `dist/`
-# *          while preserving every other pre-existing file, runs the
+# *          removes every stale generated distribution artifact from
+# *          `dist/` (first-level `*.tar.gz`, `*.tgz`, `*.whl`, and
+# *          `*.zip` files of any version) while preserving every other
+# *          pre-existing file, runs the
 # *          project-native build procedure
 # *          `uv run --frozen --with build python -m build` from the
 # *          repository root, verifies that at least one sdist and one
 # *          wheel were produced, and prints an artifact summary. The
-# *          produced sdist and wheel are committed to the repository
-# *          under `dist/` and are the sole artifact source of
+# *          produced sdist and wheel land under `dist/` as optional
+# *          release outputs and are the sole artifact source of
 # *          `.github/workflows/release-pypi.yml` (DES-042), which never
-# *          executes this script (DES-043). Generated release artifacts
-# *          are intentionally kept in `dist/`; no temporary build output
-# *          is left anywhere else.
+# *          executes this script (DES-043); repository tracking of these
+# *          artifacts is optional and not mandated by any requirement.
+# *          No temporary build output is left anywhere else.
 # * @pre The script executes inside the git repository (any working directory).
 # * @post On success `dist/` holds the fresh sdist and wheel and all stale
 # *       generated artifacts are gone; on failure the exit status is non-zero.
@@ -96,15 +98,18 @@ fi
 
 #/**
 # * @brief Remove stale generated distribution artifacts from dist/.
-# * @details Deletes only first-level `*.tar.gz` and `*.whl` files under
-# *          `<root>/dist/`, printing each removed path; every other
-# *          pre-existing file or directory is preserved. A missing `dist/`
-# *          directory is not an error and is created by the build step.
+# * @details Deletes every first-level distribution artifact file under
+# *          `<root>/dist/` matching `*.tar.gz`, `*.tgz`, `*.whl`, or
+# *          `*.zip`, so stale builds of any version and any supported
+# *          distribution format are removed, printing each removed path;
+# *          every other pre-existing file or directory is preserved. A
+# *          missing `dist/` directory is not an error and is created by
+# *          the build step.
 # * @satisfies DES-023
 # */
 DIST_DIR="${PROJECT_ROOT}/dist"
 if [ -d "${DIST_DIR}" ]; then
-    find "${DIST_DIR}" -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.whl' \) -print -delete
+    find "${DIST_DIR}" -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.tgz' -o -name '*.whl' -o -name '*.zip' \) -print -delete
 fi
 
 #/**
@@ -134,8 +139,9 @@ fi
 
 #/**
 # * @brief Print the artifact summary and terminate successfully.
-# * @details Lists every file currently collected in `dist/`; generated
-# *          release artifacts stay in place for distribution (PRJ-007).
+# * @details Lists every file currently collected in `dist/`; the freshly
+# *          generated sdist and wheel remain in `dist/` as the build
+# *          output location (PRJ-007).
 # * @satisfies DES-025
 # */
 echo "==> [BUILD] artifacts in dist/:"

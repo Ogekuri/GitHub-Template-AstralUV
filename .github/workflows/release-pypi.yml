@@ -36,7 +36,7 @@ jobs:
           fi
 
   # 2. Creates the GitHub release from the pre-built dist/ artifacts
-  #    committed in the tagged release commit; no build step runs here
+  #    present at the tagged release commit; no build step runs here
   #    and no build-preparatory check is executed (DES-042, DES-043)
   release:
     runs-on: ubuntu-24.04
@@ -114,7 +114,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # 3. Publishes the dist/ artifacts committed in the tagged release
+  # 3. Publishes the dist/ artifacts present at the tagged release
   #    commit to PyPI via OIDC Trusted Publishing (runs only when the
   #    tag is on the master branch)
   publish-pypi:
