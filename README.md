@@ -8,8 +8,10 @@
 <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json" alt="uv">
 </p>
 <p align="center">
-<strong>TODO: fill one-line very short program's description.</strong><br>
-TODO: fill full multi-line program's description with brief recap of main features.
+<strong>GitHub template for Astral-UV apps published on PyPI.</strong><br>
+Python CLI template with Astral uv/uvx packaging, PyPI OIDC Trusted
+Publishing release automation, self-upgrade from PyPI (or the latest
+GitHub tag via <code>--develop</code>), and a dual-source version report.
 </p>
 
 
@@ -28,30 +30,64 @@ TODO: fill full multi-line program's description with brief recap of main featur
 
 
 ## Feature Highlights
-- TODO: fill bullet list with highlihts of main fetures
-- 
-
+- Published on PyPI: install with `uv tool install githubtemplateastraluv`.
+- Automatic online new-version check (PyPI) throttled by an idle-time cache.
+- `--ver` dual-source report: installed, latest PyPI, and latest GitHub versions, with aligned columns.
+- Self-upgrade from PyPI; `--upgrade --develop` pulls the latest GitHub tagged release.
+- Colored console notifications with user-configurable colors.
+- Release automation: GitHub release for every version tag; OIDC Trusted Publishing to PyPI for `master` tags only.
 
 
 ## Quick Start
 
-1. TODO: fill stes to quick start with program
-
-
+1. Install the tool from PyPI:
+```bash
+uv tool install githubtemplateastraluv
+```
+2. Run it:
+```bash
+githubtemplateastraluv --help
+```
 
 ## Usage
 
-TODO: fill usage section
+```bash
+# Print the version report (aligned columns)
+githubtemplateastraluv --ver
+```
 
-- 
+Output format:
+```
+Current Installed : X1.Y1.Z1
+Latest @ PyPI     : X2.Y2.Z2
+Latest @ GitHub   : X3.Y3.Z3
+```
+
+```bash
+# Upgrade from PyPI (Linux; prints the manual command elsewhere)
+githubtemplateastraluv --upgrade
+
+# Upgrade to the latest GitHub tagged release (any branch)
+githubtemplateastraluv --upgrade --develop   # alias: --dev
+
+# Uninstall (Linux; prints the manual command elsewhere)
+githubtemplateastraluv --uninstall
+
+# Full help screen
+githubtemplateastraluv --help
+```
 
 
-
-## Install with Astral uv
+## Install with Astral uv (PyPI — primary method)
 
 #### Install
 ```bash
-uv tool install githubtemplateastraluv --force --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git
+uv tool install githubtemplateastraluv
+```
+
+#### Upgrade
+```bash
+githubtemplateastraluv --upgrade
 ```
 
 #### Uninstall
@@ -59,18 +95,39 @@ uv tool install githubtemplateastraluv --force --from git+https://github.com/Oge
 uv tool uninstall githubtemplateastraluv
 ```
 
-## Live execution with uvx
+## Live execution with uvx (alternative method)
 
-Run githubtemplateastraluv directly from the current repository checkout without prior installation:
+Run githubtemplateastraluv directly from PyPI without prior installation:
 
 ```bash
-uvx --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git githubtemplateastraluv
+uvx githubtemplateastraluv
 ```
 
 You can pass options as usual, for example:
 
 ```bash
-uvx --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git githubtemplateastraluv <args>
+uvx githubtemplateastraluv <args>
+```
+
+## Install and upgrade from GitHub (development releases)
+
+A dedicated, non-primary distribution channel hosts intermediate and test
+releases on GitHub: `https://github.com/Ogekuri/GitHub-Template-AstralUV`.
+
+#### Install
+```bash
+uv tool install githubtemplateastraluv --force --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git
+```
+
+#### Upgrade to the latest GitHub tagged release (any branch)
+```bash
+githubtemplateastraluv --upgrade --develop
+```
+
+`--upgrade --develop` (alias `--dev`) always downloads the most recent
+tagged build from GitHub, regardless of the branch it was tagged on
+(`master`, `develop`, or any other branch). The `--ver` report shows the
+GitHub latest release in the `Latest @ GitHub` row.
 ```
 
 

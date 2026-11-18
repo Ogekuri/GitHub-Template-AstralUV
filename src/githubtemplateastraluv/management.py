@@ -14,8 +14,22 @@ PROGRAM_NAME = "githubtemplateastraluv"
 ## @brief Exact `uv tool install` argv executed on Linux by `--upgrade`.
 # @details `' '.join(UPGRADE_COMMAND)` equals the literal string mandated
 #          by REQ-003 and is printed verbatim as the manual command on
-#          non-Linux platforms (REQ-004).
+#          non-Linux platforms (REQ-004). Source resolves from PyPI.
 UPGRADE_COMMAND = [
+    "uv",
+    "tool",
+    "install",
+    "githubtemplateastraluv",
+    "--force",
+]
+
+## @brief Exact `uv tool install` argv executed on Linux by
+#        `--upgrade --develop` (REQ-032).
+# @details `' '.join(UPGRADE_DEVELOP_COMMAND)` equals the literal string
+#          mandated by REQ-032 and is printed verbatim as the manual
+#          command on non-Linux platforms (REQ-033). Source resolves from
+#          the GitHub repository (latest tagged release, any branch).
+UPGRADE_DEVELOP_COMMAND = [
     "uv",
     "tool",
     "install",
@@ -107,22 +121,28 @@ def print_help(version: str) -> int:
     return 0
 
 
-def cmd_upgrade() -> int:
+def cmd_upgrade(develop: bool = False) -> int:
     """@brief Reinstall the tool via `uv tool install` on Linux.
 
-    @details On Linux the exact UPGRADE_COMMAND argv executes through
-             subprocess and its exit code propagates. On any other OS no
-             process spawns; a warning plus the manual command print
-             instead (REQ-004).
+    @details On Linux the exact argv selected by `develop` executes through
+             subprocess and its exit code propagates: UPGRADE_COMMAND for
+             the PyPI source (REQ-003), UPGRADE_DEVELOP_COMMAND for the
+             GitHub development source (REQ-032). On any other OS no
+             process spawns; a warning plus the matching manual command
+             print instead (REQ-004, REQ-033).
+    @param develop {bool} True selects the GitHub development source
+           (`--upgrade --develop` / `--upgrade --dev`); False selects the
+           PyPI source (default).
     @return {int} 0 on manual fallback or successful subprocess;
             otherwise the `uv` process exit code.
-    @satisfies REQ-003 REQ-004 CTN-009
+    @satisfies REQ-003 REQ-004 REQ-032 REQ-033 CTN-009
     """
+    command = UPGRADE_DEVELOP_COMMAND if develop else UPGRADE_COMMAND
     if not is_linux():
         print("WARNING: --upgrade executes automatically on Linux only.")
-        print(f"Run manually: {' '.join(UPGRADE_COMMAND)}")
+        print(f"Run manually: {' '.join(command)}")
         return 0
-    completed = subprocess.run(UPGRADE_COMMAND, check=False)
+    completed = subprocess.run(command, check=False)
     return int(completed.returncode)
 
 

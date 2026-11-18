@@ -1,4 +1,4 @@
-name: Release (uvx)
+name: Release (PyPI)
 
 on:
   workflow_dispatch:
@@ -35,11 +35,9 @@ jobs:
             echo "is_master=false" >> "$GITHUB_OUTPUT"
           fi
 
-  # 2. Effetua la build
+  # 2. Builds the distributions and creates the GitHub release
+  #    (runs for every canonical version tag on any branch)
   build-release:
-    needs: check-branch
-    # Esegue questo job SOLO se l'output del job precedente è 'true'
-    if: needs.check-branch.outputs.is_master == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -125,3 +123,15 @@ jobs:
           body: ${{ steps.build_changelog.outputs.changelog }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 3. Publishes the built distributions to PyPI via OIDC Trusted
+  #    Publishing (runs only when the tag is on the master branch)
+  publish-pypi:
+    needs: [check-branch, build-release]
+    if: needs.check-branch.outputs.is_master == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

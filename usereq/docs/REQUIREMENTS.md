@@ -16,11 +16,11 @@ This document MUST follow these authoring rules (LLM-first, normative SRS):
   - Do NOT add YAML front matter or in-document revision history; use git history / CHANGELOG.md for change tracking.
 
 ### 1.2 Project Scope
-Project `githubtemplateastraluv`: a Python CLI application distributed as an Astral UV tool via `uv tool install` from `git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` or executed on-the-fly via `uvx`; the repository doubles as the GitHub template `Ogekuri/GitHub-Template-AstralUV` ("GitHub template for Astral-UV app", author Francesco Rolando).
+Project `githubtemplateastraluv`: a Python CLI application published on PyPI (`https://pypi.org/project/githubtemplateastraluv/`) and distributed as an Astral UV tool via `uv tool install githubtemplateastraluv` or executed on-the-fly via `uvx`; `git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` remains the optional development source of the `--upgrade --develop` variant; the repository doubles as the GitHub template `Ogekuri/GitHub-Template-AstralUV` ("GitHub template for Astral-UV app", author Francesco Rolando).
 
-Interface: text-only CLI in English; no GUI functionality is requested. Functional areas: management commands (`--help`, `--ver`, `--version`, `--upgrade`, `--uninstall`) independent from core logic; automatic online new-version check throttled by an idle-time JSON cache; colored console notifications. Configurability: version-check parameters (endpoint, timeout, and idle-delays) remain hardcoded constants and stay unexposed (CTN-008); the cache location derives from the `$HOME` environment variable; notification colors are user-configurable through a JSON configuration CLI (`--get`, `--set`, `--unset`, `--print`, `--info`, `--print-raw`) persisting state at `$HOME/.config/githubtemplateastraluv/config.json` (REQ-024). No application project-local configuration layer exists; the repository-root `.g.conf` file belongs to repository tooling and is not application configuration. Performance constraints: HTTPS timeout of 2 seconds; cache gating avoids redundant network calls.
+Interface: text-only CLI in English; no GUI functionality is requested. Functional areas: management commands (`--help`, `--ver`, `--version`, `--upgrade`, `--uninstall`, with the `--develop`/`--dev` source modifier of `--upgrade`) independent from core logic; automatic online new-version check against PyPI throttled by an idle-time JSON cache; `--ver` dual-source report covering PyPI and GitHub; colored console notifications. Configurability: version-check parameters (endpoint, timeout, and idle-delays) remain hardcoded constants and stay unexposed (CTN-008); the cache location derives from the `$HOME` environment variable; notification colors are user-configurable through a JSON configuration CLI (`--get`, `--set`, `--unset`, `--print`, `--info`, `--print-raw`) persisting state at `$HOME/.config/githubtemplateastraluv/config.json` (REQ-024). No application project-local configuration layer exists; the repository-root `.g.conf` file belongs to repository tooling and is not application configuration. Performance constraints: HTTPS timeout of 2 seconds; cache gating avoids redundant network calls.
 
-Component model: the CLI entry `src/githubtemplateastraluv/__main__.py` dispatches to management commands and core logic; a dedicated version-check component performs the HTTPS query, cache persistence, and notification rendering before argument parsing; `scripts/templateastraluv.sh` wraps local execution.
+Component model: the CLI entry `src/githubtemplateastraluv/__main__.py` dispatches to management commands and core logic; a dedicated version-check component performs the HTTPS queries (PyPI JSON API for the gated check and the report, GitHub releases API for the report), cache persistence, and notification rendering before argument parsing; `scripts/templateastraluv.sh` wraps local execution.
 
 Keyword substitution mapping (skeleton initialization):
 
@@ -51,7 +51,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 ## 2. Project Requirements
 
 ### 2.1 Project Functions
-- **PRJ-001**: MUST provide the Python CLI application `githubtemplateastraluv`, installable as an Astral UV tool via `uv` and executable on-the-fly via `uvx`.
+- **PRJ-001**: MUST provide the Python CLI application `githubtemplateastraluv`, published on PyPI, installable as an Astral UV tool via `uv` and executable on-the-fly via `uvx`.
 - **PRJ-002**: MUST support local execution of the CLI through the launcher script `scripts/templateastraluv.sh`.
 - **PRJ-003**: MUST provide text-based management commands `--help`, `--ver`, `--version`, `--upgrade`, and `--uninstall`, implemented independently from the core application logic.
 - **PRJ-004**: MUST provide an automatic online new-version check that runs before CLI argument parsing and is throttled by an idle-time cache.
@@ -68,7 +68,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **CTN-007**: MUST hardcode the standard idle-delay to 3600 seconds and the failure backoff idle-delay to 86400 seconds.
 - **CTN-008**: MUST NOT expose configuration surfaces (CLI options or files) altering endpoint, timeout, or idle-delay values; the cache directory MUST derive from `$HOME`.
 - **CTN-009**: MUST execute `--upgrade` and `--uninstall` side effects only on Linux, delegating to the installed `uv` command-line tool.
-- **CTN-010**: MUST NOT set `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` or `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` in `.github/workflows/release-uvx.yml`.
+- **CTN-010**: MUST NOT set `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` or `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` in `.github/workflows/release-pypi.yml`.
 
 ## 3. Requirements
 
@@ -88,7 +88,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 ├── .g.conf
 ├── .github/
 │   └── workflows/
-│       └── release-uvx.yml
+│       └── release-pypi.yml
 ├── README.md
 ├── pyproject.toml
 ├── uv.lock
@@ -118,7 +118,11 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **DES-012**: MUST render `--print` and `--info` through one shared data-driven renderer emitting UTF-8 box-drawing trees from typed configuration nodes.
 - **DES-013**: MUST produce every table through one measured-width formatter rendering rectangular box-drawing rows anchored to the owning parameter detail prefix.
 - **DES-014**: MUST persist `--set` and `--unset` updates atomically via a same-directory temporary file, fsync, atomic replace, and prior-file preservation on any failure.
-- **DES-015**: MUST pin every JavaScript action referenced by `.github/workflows/release-uvx.yml` to a major version whose declared runtime is Node24 or later.
+- **DES-015**: MUST pin every JavaScript action referenced by `.github/workflows/release-pypi.yml` to a major version whose declared runtime is Node24 or later.
+- **DES-016**: MUST name the release workflow file `release-pypi.yml`, matching the pending PyPI trusted publisher (project `githubtemplateastraluv`, repository `Ogekuri/GitHub-Template-AstralUV`, workflow `release-pypi.yml`).
+- **DES-017**: MUST publish built distributions to PyPI via OIDC Trusted Publishing through `pypa/gh-action-pypi-publish` granted `id-token: write`, only when the triggered tag belongs to `master`.
+- **DES-018**: MUST execute the build and GitHub release jobs for every canonical version tag on any branch, gating only the PyPI publish job on the `master` branch check.
+- **DES-019**: MUST keep `README.md` documenting PyPI installation as the primary method, an Astral uv/uvx alternative-installation section, and a dedicated non-primary section for installation from GitHub with the `--develop` upgrade.
 
 ### 3.2 Functions
 - **REQ-001**: MUST print the verbatim English help screen (template below) when invoked with `--help` or with no arguments.
@@ -137,17 +141,17 @@ Commands:
   ...
 ```
 
-- **REQ-002**: MUST print the current version in `x.y.z` format for `--ver` and `--version`, then force the online version check bypassing idle-delay and cache file.
-- **REQ-003**: MUST execute `uv tool install githubtemplateastraluv --force --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` when `--upgrade` runs on Linux.
+- **REQ-002**: MUST print for `--ver` and `--version` the three-row version report with aligned version columns, bypassing the idle-time gate and cache file.
+- **REQ-003**: MUST execute `uv tool install githubtemplateastraluv --force` when `--upgrade` runs on Linux, resolving the package from PyPI.
 - **REQ-004**: MUST NOT execute any upgrade command on non-Linux operating systems; MUST print a warning and the manual command of REQ-003 instead.
 - **REQ-005**: MUST execute `uv tool uninstall githubtemplateastraluv` when `--uninstall` runs on Linux.
 - **REQ-006**: MUST NOT execute any uninstall command on non-Linux operating systems; MUST print a warning and the manual command of REQ-005 instead.
 - **REQ-007**: MUST run the automatic version check before argument parsing on every invocation, subject to REQ-008 gating; `--ver` and `--version` bypass the gate.
 - **REQ-008**: MUST perform the HTTPS request only when the cache file is absent or the current epoch is greater than or equal to the cached idle-time; otherwise skip the check.
-- **REQ-009**: MUST query `https://api.github.com/repos/Ogekuri/GitHub-Template-AstralUV/releases/latest` with a 2-second timeout whenever the check executes.
+- **REQ-009**: MUST query `https://pypi.org/pypi/githubtemplateastraluv/json` with a 2-second timeout whenever the check executes.
 - **REQ-010**: MUST persist, after every executed check, a cache JSON containing four fields: last-check epoch, last-check human-readable, idle-time epoch, idle-time human-readable.
 - **REQ-011**: MUST compute the idle-time epoch as the last-check epoch plus the applicable idle-delay: 3600 seconds on success, 86400 seconds on failure.
-- **REQ-012**: MUST print a bright green message comparing the available release version with the installed version when a newer release is found.
+- **REQ-012**: MUST print a bright green message comparing the available PyPI version with the installed version when a newer PyPI version is found.
 - **REQ-013**: MUST refresh the cache with the standard 3600-second idle-delay after every successful HTTPS check, regardless of comparison outcome (A-04).
 - **REQ-014**: MUST print a bright red message reporting the encountered error for any failed HTTPS check (HTTP 429, 503, timeout, or network error).
 - **REQ-015**: MUST write the cache with an idle-delay of 86400 seconds after any failed HTTPS check (A-05).
@@ -162,17 +166,28 @@ Commands:
 - **REQ-024**: MUST define configuration section `Notifications` holding Selection parameter `new_version_color` (default `bright_green`) and Selection parameter `error_color` (default `bright_red`).
 - **REQ-025**: MUST restrict both Selection parameters to the enum `bright_green`, `bright_red`, `bright_yellow`, `bright_blue`, `bright_magenta`, `bright_cyan`, `bright_white`.
 - **REQ-026**: MUST color version-check notifications with the configured values and fall back to schema defaults when the configuration cannot be loaded.
+- **REQ-027**: MUST format each `--ver` report row as `<label padded to 17 characters> : <version>`, rendering the labels `Current Installed`, `Latest @ PyPI`, and `Latest @ GitHub` with aligned version numbers.
+- **REQ-028**: MUST fill the `Latest @ PyPI` report row with the latest version from `https://pypi.org/pypi/githubtemplateastraluv/json`.
+- **REQ-029**: MUST fill the `Latest @ GitHub` report row with the latest release tag from `https://api.github.com/repos/Ogekuri/GitHub-Template-AstralUV/releases/latest`, stripped of its `v` prefix.
+- **REQ-030**: MUST print `unavailable` in place of the version for a failed report source and a bright red note naming that source.
+- **REQ-031**: MUST update the version-check cache from the report PyPI outcome only: 3600-second idle-delay on success, 86400-second idle-delay on failure.
+- **REQ-032**: MUST execute `uv tool install githubtemplateastraluv --force --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` when `--upgrade --develop` or `--upgrade --dev` runs on Linux.
+- **REQ-033**: MUST NOT execute any develop-upgrade command on non-Linux operating systems; MUST print a warning and the manual command of REQ-032 instead.
+- **REQ-034**: MUST interpret `--develop` and `--dev` exclusively as source modifiers of `--upgrade`, leaving every other argument combination to the existing dispatch behavior.
 
 ## 4. Test Requirements
 - **TST-001**: MUST verify REQ-001 by running the CLI with no arguments and with `--help`; pass iff stdout equals the 3.2 template with `(x.y.z)` replaced by the current version.
-- **TST-002**: MUST verify REQ-002 by invoking `--ver` and asserting stdout matches `^[0-9]+\.[0-9]+\.[0-9]+$` and the check executes even with an unexpired cache file.
-- **TST-003**: MUST verify REQ-003 and REQ-005 on Linux (or a mocked platform) by asserting the exact `uv tool install` and `uv tool uninstall` command strings execute.
-- **TST-004**: MUST verify REQ-004 and REQ-006 by simulating a non-Linux platform and asserting no `uv` subprocess spawns while the warning and manual command print.
-- **TST-005**: MUST verify REQ-007, REQ-008, and REQ-009 with a mocked endpoint: absent cache triggers one request; unexpired cache triggers none; timeout equals 2 seconds.
+- **TST-002**: MUST verify REQ-002 by invoking `--ver` and asserting the three-row aligned report prints and the fetches execute even with an unexpired cache file.
+- **TST-003**: MUST verify REQ-003, REQ-005, and REQ-032 on Linux (or a mocked platform) by asserting the exact PyPI, develop, and uninstall `uv` command strings execute.
+- **TST-004**: MUST verify REQ-004, REQ-006, and REQ-033 by simulating a non-Linux platform and asserting no `uv` subprocess spawns while the warnings and manual commands print.
+- **TST-005**: MUST verify REQ-007, REQ-008, and REQ-009 with a mocked PyPI endpoint: absent cache triggers one request; unexpired cache triggers none; timeout equals 2 seconds.
 - **TST-006**: MUST verify REQ-010, REQ-011, REQ-012, and REQ-013 by mocking a newer-release response; pass iff bright green output prints and the cache holds four fields with idle-time equal to check time plus 3600.
 - **TST-007**: MUST verify REQ-014 and REQ-015 by mocking an HTTP 503 response; pass iff a bright red error message prints and cache idle-time equals attempt time plus 86400.
 - **TST-008**: MUST verify `--print` and `--info` against complete golden outputs covering sibling branches, leaf details, selection tables, and requested subtrees.
 - **TST-009**: MUST verify tree structural invariants and table alignment: real-node edges match schema topology and every detail line carries its owner prefix.
 - **TST-010**: MUST verify the configuration CLI by exercising `--get`, `--set`, `--unset`, `--print`, `--info`, and `--print-raw` for valid, invalid, and reset flows with isolated `$HOME`.
 - **TST-011**: MUST verify REQ-026 by asserting default bright green and bright red notifications and configured-color rendering after `--set`.
-- **TST-012**: MUST verify DES-015 and CTN-010 by parsing `.github/workflows/release-uvx.yml` and asserting every `uses:` pin meets the Node24-or-later runtime constraint with no fallback variable present.
+- **TST-012**: MUST verify DES-015 and CTN-010 by parsing `.github/workflows/release-pypi.yml` and asserting every `uses:` pin meets the Node24-or-later runtime constraint with no fallback variable present.
+- **TST-013**: MUST verify REQ-027 through REQ-031 with mocked PyPI and GitHub payloads: exact aligned rows, `unavailable` rows plus red notes on failures, and cache deltas driven only by the PyPI outcome.
+- **TST-014**: MUST verify REQ-032, REQ-033, and REQ-034 by asserting the exact develop argv on Linux, the warning and manual command on non-Linux, and no upgrade dispatch for `--develop` alone.
+- **TST-015**: MUST verify DES-016, DES-017, and DES-018 by parsing `.github/workflows/release-pypi.yml` and asserting the OIDC publish job with `id-token: write` runs only for `master` tags while build and release jobs run for every tag.

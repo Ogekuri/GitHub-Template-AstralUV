@@ -425,7 +425,7 @@ followed by its real descendants, without invented ancestors
 
 ---
 
-# core.py | Python | 71L | 1 symbols | 2 imports | 11 comments
+# core.py | Python | 74L | 1 symbols | 2 imports | 11 comments
 > Path: `src/githubtemplateastraluv/core.py`
 
 ## Imports
@@ -436,22 +436,22 @@ from githubtemplateastraluv import (
 
 ## Definitions
 
-### fn `def main(argv: list[str] | None = None) -> int` (L22-72)
+### fn `def main(argv: list[str] | None = None) -> int` (L22-75)
 - @brief Execute the gated version check, then dispatch commands.
-- @details Dispatch order: `--help` or no arguments -> help screen; `--ver` / `--version` -> version print followed by forced check; then `--upgrade`; then `--uninstall`; then the additive configuration CLI commands `--get`, `--set`, `--unset`, `--print-raw`, `--print`, `--info` (PRJ-006); unknown input falls back to the help screen. Non-forced invocations execute the gated check before dispatch (REQ-007); forced invocations bypass the gate inside the version branch (REQ-002). Existing management dispatch and observable behavior are unchanged by the configuration branches (REQ-016..REQ-021).
+- @details Dispatch order: `--help` or no arguments -> help screen; `--ver` / `--version` -> aligned three-row version report fetching PyPI and GitHub with the gate bypassed (REQ-002, REQ-027..REQ-031); then `--upgrade`, optionally with the `--develop` / `--dev` source modifier selecting the GitHub development source (REQ-032..REQ-034); then `--uninstall`; then the additive configuration CLI commands `--get`, `--set`, `--unset`, `--print-raw`, `--print`, `--info` (PRJ-006); unknown input falls back to the help screen. Non-forced invocations execute the gated PyPI check before dispatch (REQ-007). Existing management dispatch and observable behavior are unchanged by the configuration branches (REQ-016..REQ-021).
 - @param argv {list[str] | None} CLI arguments excluding the program name; None resolves to `sys.argv[1:]`.
 - @return {int} Process exit code: 0 on handled dispatch, or the return code of the spawned `uv` subprocess for `--upgrade` `--uninstall`, or 1 for configuration CLI failures (REQ-023).
-- @satisfies REQ-001 REQ-002 REQ-007 REQ-016 REQ-017 REQ-018 REQ-019 REQ-020 REQ-021 A-06 PRJ-006
+- @satisfies REQ-001 REQ-002 REQ-007 REQ-016 REQ-017 REQ-018 REQ-019 REQ-020 REQ-021 REQ-027 REQ-028 REQ-029 REQ-030 REQ-031 REQ-032 REQ-033 REQ-034 A-06 PRJ-006
 
 ## Symbol Index
 |Symbol|Kind|Vis|Lines|Sig|
 |---|---|---|---|---|
-|`main`|fn|pub|22-72|def main(argv: list[str] | None = None) -> int|
+|`main`|fn|pub|22-75|def main(argv: list[str] | None = None) -> int|
 
 
 ---
 
-# management.py | Python | 145L | 9 symbols | 2 imports | 23 comments
+# management.py | Python | 165L | 10 symbols | 2 imports | 29 comments
 > Path: `src/githubtemplateastraluv/management.py`
 
 ## Imports
@@ -465,41 +465,43 @@ import sys
 - var `PROGRAM_NAME = "githubtemplateastraluv"` (L12)
 - @brief Canonical program name used across help text and uv commands.
 - var `UPGRADE_COMMAND = [` (L18)
-- var `UNINSTALL_COMMAND = ["uv", "tool", "uninstall", "githubtemplateastraluv"]` (L32)
-### fn `def is_linux() -> bool` (L38-49)
+- var `UPGRADE_DEVELOP_COMMAND = [` (L32)
+- var `UNINSTALL_COMMAND = ["uv", "tool", "uninstall", "githubtemplateastraluv"]` (L46)
+### fn `def is_linux() -> bool` (L52-63)
 - @brief Flag column width keeping management help lines aligned.
 - @brief Report whether the current operating system is Linux.
 - @details `sys.platform` prefix check (covers `linux` and historical `linux2` values); all other platforms take the manual-command branch (A-09).
 - @return {bool} True on Linux, False otherwise.
 - @satisfies A-09 CTN-009
 
-### fn `def _management_entry(flag: str, description: str) -> str` `priv` (L50-60)
+### fn `def _management_entry(flag: str, description: str) -> str` `priv` (L64-74)
 - @brief Render one aligned management-command help line.
 - @param flag {str} Command flag (e.g. `--upgrade`).
 - @param description {str} Description text placed after the dash.
 - @return {str} Line matching the REQ-001 template alignment.
 - @satisfies REQ-001
 
-### fn `def build_help_text(version: str) -> str` (L61-98)
+### fn `def build_help_text(version: str) -> str` (L75-112)
 - @brief Render the full help screen text (REQ-001 template).
 - @details The literal `(x.y.z)` slot of the template receives the installed version (A-01); the `Commands:` section ends with the literal `...` line (A-02).
 - @param version {str} Installed version in `x.y.z` format.
 - @return {str} Help text without trailing newline; the caller prints it.
 - @satisfies REQ-001 A-01 A-02
 
-### fn `def print_help(version: str) -> int` (L99-109)
+### fn `def print_help(version: str) -> int` (L113-123)
 - @brief Print the full help screen to stdout.
 - @param version {str} Installed version in `x.y.z` format.
 - @return {int} Always 0.
 - @satisfies REQ-001 PRJ-005
 
-### fn `def cmd_upgrade() -> int` (L110-128)
+### fn `def cmd_upgrade(develop: bool = False) -> int` (L124-148)
 - @brief Reinstall the tool via `uv tool install` on Linux.
-- @details On Linux the exact UPGRADE_COMMAND argv executes through subprocess and its exit code propagates. On any other OS no process spawns; a warning plus the manual command print instead (REQ-004).
+- @details On Linux the exact argv selected by `develop` executes through subprocess and its exit code propagates: UPGRADE_COMMAND for the PyPI source (REQ-003), UPGRADE_DEVELOP_COMMAND for the GitHub development source (REQ-032). On any other OS no process spawns; a warning plus the matching manual command print instead (REQ-004, REQ-033).
+- @param develop {bool} True selects the GitHub development source (`--upgrade --develop` / `--upgrade --dev`); False selects the PyPI source (default).
 - @return {int} 0 on manual fallback or successful subprocess; otherwise the `uv` process exit code.
-- @satisfies REQ-003 REQ-004 CTN-009
+- @satisfies REQ-003 REQ-004 REQ-032 REQ-033 CTN-009
 
-### fn `def cmd_uninstall() -> int` (L129-146)
+### fn `def cmd_uninstall() -> int` (L149-166)
 - @brief Uninstall the tool via `uv tool uninstall` on Linux.
 - @details On Linux the exact UNINSTALL_COMMAND argv executes through subprocess and its exit code propagates. On any other OS no process spawns; a warning plus the manual command print instead (REQ-006).
 - @return {int} 0 on manual fallback or successful subprocess; otherwise the `uv` process exit code.
@@ -510,18 +512,19 @@ import sys
 |---|---|---|---|---|
 |`PROGRAM_NAME`|var|pub|12||
 |`UPGRADE_COMMAND`|var|pub|18||
-|`UNINSTALL_COMMAND`|var|pub|32||
-|`is_linux`|fn|pub|38-49|def is_linux() -> bool|
-|`_management_entry`|fn|priv|50-60|def _management_entry(flag: str, description: str) -> str|
-|`build_help_text`|fn|pub|61-98|def build_help_text(version: str) -> str|
-|`print_help`|fn|pub|99-109|def print_help(version: str) -> int|
-|`cmd_upgrade`|fn|pub|110-128|def cmd_upgrade() -> int|
-|`cmd_uninstall`|fn|pub|129-146|def cmd_uninstall() -> int|
+|`UPGRADE_DEVELOP_COMMAND`|var|pub|32||
+|`UNINSTALL_COMMAND`|var|pub|46||
+|`is_linux`|fn|pub|52-63|def is_linux() -> bool|
+|`_management_entry`|fn|priv|64-74|def _management_entry(flag: str, description: str) -> str|
+|`build_help_text`|fn|pub|75-112|def build_help_text(version: str) -> str|
+|`print_help`|fn|pub|113-123|def print_help(version: str) -> int|
+|`cmd_upgrade`|fn|pub|124-148|def cmd_upgrade(develop: bool = False) -> int|
+|`cmd_uninstall`|fn|pub|149-166|def cmd_uninstall() -> int|
 
 
 ---
 
-# version_check.py | Python | 242L | 10 symbols | 8 imports | 30 comments
+# version_check.py | Python | 366L | 13 symbols | 8 imports | 46 comments
 > Path: `src/githubtemplateastraluv/version_check.py`
 
 ## Imports
@@ -538,29 +541,28 @@ from githubtemplateastraluv import config
 
 ## Definitions
 
-### fn `def _cache_path() -> Path` `priv` (L46-60)
-- @brief ANSI SGR reset suffix closing colored notifications.
+### fn `def _cache_path() -> Path` `priv` (L65-79)
+- @brief Placeholder replacing the version of a failed report source
 - @brief Resolve the absolute cache file path from `$HOME`.
-- @details Notification prefix colors are configured through the
 - @details Prefers the `HOME` environment variable (CTN-008); falls back to `Path.home()` when unset. Does not create directories.
 - @return {Path} Absolute cache file path.
 - @satisfies DES-007 CTN-008
 
-### fn `def _read_cache(path: Path) -> dict[str, Any] | None` `priv` (L61-77)
+### fn `def _read_cache(path: Path) -> dict[str, Any] | None` `priv` (L80-96)
 - @brief Load the idle-time cache JSON document.
 - @details Returns None when the file is absent, unreadable, unparsable, or not a JSON object; callers treat None as cache-miss.
 - @param path {Path} Cache file path.
 - @return {dict[str, Any] | None} Parsed cache payload or None.
 - @satisfies REQ-008
 
-### fn `def _human_timestamp(epoch_seconds: float) -> str` `priv` (L78-86)
+### fn `def _human_timestamp(epoch_seconds: float) -> str` `priv` (L97-105)
 - @brief Format an epoch value as UTC ISO-8601.
 - @param epoch_seconds {float} Epoch seconds to render.
 - @return {str} Timestamp shaped `YYYY-MM-DDTHH:MM:SSZ`.
 
-### fn `def _write_cache(` `priv` (L87-90)
+### fn `def _write_cache(` `priv` (L106-109)
 
-### fn `def _gate_allows_request(` `priv` (L115-117)
+### fn `def _gate_allows_request(` `priv` (L134-136)
 - @brief Persist the four-field idle-time cache document.
 - @details Creates missing parent directories. Field names follow A-03.
 - @param path {Path} Cache file path.
@@ -571,7 +573,7 @@ from githubtemplateastraluv import config
 - @post Cache file holds exactly four fields: last_check_epoch,
 last_check_human, idle_time_epoch, idle_time_human.
 
-### fn `def _parse_version(version: str) -> tuple[int, ...]` `priv` (L136-147)
+### fn `def _parse_version(version: str) -> tuple[int, ...]` `priv` (L155-166)
 - @brief Evaluate the idle-time request gate.
 - @brief Parse a dotted version string into a comparable tuple.
 - @details Gate opens on cache-miss (None), non-numeric idle_time_epoch,
@@ -585,28 +587,45 @@ or `now_epoch >= idle_time_epoch`; otherwise it stays closed.
 - @throws {ValueError} If any component is not an integer.
 - @satisfies REQ-008
 
-### fn `def _fetch_latest_release() -> str` `priv` (L148-171)
-- @brief GET the latest release payload and extract `tag_name`.
-- @return {str} Latest release tag (e.g. `v1.2.3`).
+### fn `def _fetch_latest_pypi_version() -> str` `priv` (L167-190)
+- @brief GET the PyPI JSON payload and extract the latest version.
+- @details Sends a plain GET to the PyPI JSON API; no Accept header is required. Payload shape: `{"info": {"version": "x.y.z"}}`.
+- @return {str} Latest published version in `x.y.z` format.
+- @throws {urllib.error.URLError} On HTTP and network failures; includes HTTPError carrying the status code (e.g. 429, 503).
+- @throws {TimeoutError} On the 2-second timeout expiry.
+- @throws {ValueError} On unparsable payload or missing version.
+- @satisfies REQ-009 REQ-028 CTN-006
+
+### fn `def _fetch_latest_github_version() -> str` `priv` (L191-218)
+- @brief GET the latest GitHub release payload and extract its version.
+- @details Strips one leading `v`/`V` prefix from `tag_name`; the returned value is exactly the version downloaded by `--upgrade --develop` (REQ-032) regardless of the branch the release was tagged on.
+- @return {str} Latest release version in `x.y.z` format.
 - @throws {urllib.error.URLError} On HTTP and network failures; includes HTTPError carrying the status code (e.g. 429, 503).
 - @throws {TimeoutError} On the 2-second timeout expiry.
 - @throws {ValueError} On unparsable payload or missing tag_name.
-- @satisfies REQ-009 CTN-006
+- @satisfies REQ-029 CTN-006
 
-### fn `def _print_colored(color: str, message: str) -> None` `priv` (L172-182)
+### fn `def _format_report_row(label: str, value: str) -> str` `priv` (L219-229)
+- @brief Render one report row with the label padded to 17 columns.
+- @param label {str} Row label (e.g. `Latest @ PyPI`).
+- @param value {str} Version string or `unavailable` placeholder.
+- @return {str} Row shaped `<label padded to 17> : <value>` (REQ-027).
+- @satisfies REQ-027
+
+### fn `def _print_colored(color: str, message: str) -> None` `priv` (L230-240)
 - @brief Print a message wrapped in an ANSI color prefix and reset.
 - @param color {str} ANSI SGR prefix (bright green or bright red).
 - @param message {str} Plain-text message content.
 - @return {None}
 - @satisfies DES-008
 
-### fn `def _report_failure(` `priv` (L183-186)
+### fn `def _report_failure(` `priv` (L241-244)
 
-### fn `def run_version_check(installed_version: str, force: bool = False) -> None` (L201-243)
+### fn `def run_version_check(installed_version: str, force: bool = False) -> None` (L259-302)
 - @brief Emit the failure note and write the 86400 s cache.
-- @brief Execute the gated (or forced) online version check.
+- @brief Execute the gated (or forced) online version check on PyPI.
 - @details The note renders with the configured error color (REQ-026).
-- @details Flow: cache read -> gate evaluation (skipped when `force`) -> HTTPS fetch -> version compare -> notify -> cache write. Notification colors come from the configuration subsystem with schema-default fallback (REQ-026). Success always refreshes the cache with the 3600 s idle-delay (REQ-013, A-04); fetch or parse failures print the configured error note and back off 86400 s (REQ-014, REQ-015, A-05). The call always returns normally; callers continue parsing (A-06).
+- @details Flow: cache read -> gate evaluation (skipped when `force`) -> PyPI JSON fetch -> version compare -> notify -> cache write. Notification colors come from the configuration subsystem with schema-default fallback (REQ-026). Success always refreshes the cache with the 3600 s idle-delay (REQ-013, A-04); fetch or parse failures print the configured error note and back off 86400 s (REQ-014, REQ-015, A-05). The call always returns normally; callers continue parsing (A-06).
 - @param check_epoch {float} Epoch seconds of the failed attempt.
 - @param error {BaseException} Encountered error rendered in the note.
 - @param color {str} ANSI SGR prefix for the failure note.
@@ -617,19 +636,29 @@ or `now_epoch >= idle_time_epoch`; otherwise it stays closed.
 - @satisfies REQ-014 REQ-015 REQ-026 A-05
 - @satisfies REQ-007 REQ-008 REQ-009 REQ-010 REQ-011 REQ-012 REQ-013 REQ-014 REQ-015 REQ-024 REQ-025 REQ-026
 
+### fn `def run_version_report(installed_version: str) -> None` (L303-367)
+- @brief Execute the forced dual-source version report (`--ver`).
+- @details Flow: fetch PyPI -> fetch GitHub -> emit the three aligned rows. Each failed fetch emits one bright red note naming the failed source with the configured error color (REQ-030) and its row prints `unavailable` in place of the version. Rows print in order: installed, PyPI, GitHub; version columns aligned via a 17-character label pad (REQ-027). The GitHub row shows the latest release tag stripped of its `v` prefix, exactly the version downloaded by `--upgrade --develop` (REQ-029). The idle-time gate and cache file are bypassed (REQ-002); the cache write follows the PyPI outcome only: 3600 s on success, 86400 s on failure (REQ-031). The call always returns normally (A-06).
+- @param installed_version {str} Installed version in `x.y.z` format.
+- @return {None}
+- @satisfies REQ-002 REQ-027 REQ-028 REQ-029 REQ-030 REQ-031 REQ-026
+
 ## Symbol Index
 |Symbol|Kind|Vis|Lines|Sig|
 |---|---|---|---|---|
-|`_cache_path`|fn|priv|46-60|def _cache_path() -> Path|
-|`_read_cache`|fn|priv|61-77|def _read_cache(path: Path) -> dict[str, Any] | None|
-|`_human_timestamp`|fn|priv|78-86|def _human_timestamp(epoch_seconds: float) -> str|
-|`_write_cache`|fn|priv|87-90|def _write_cache(|
-|`_gate_allows_request`|fn|priv|115-117|def _gate_allows_request(|
-|`_parse_version`|fn|priv|136-147|def _parse_version(version: str) -> tuple[int, ...]|
-|`_fetch_latest_release`|fn|priv|148-171|def _fetch_latest_release() -> str|
-|`_print_colored`|fn|priv|172-182|def _print_colored(color: str, message: str) -> None|
-|`_report_failure`|fn|priv|183-186|def _report_failure(|
-|`run_version_check`|fn|pub|201-243|def run_version_check(installed_version: str, force: bool...|
+|`_cache_path`|fn|priv|65-79|def _cache_path() -> Path|
+|`_read_cache`|fn|priv|80-96|def _read_cache(path: Path) -> dict[str, Any] | None|
+|`_human_timestamp`|fn|priv|97-105|def _human_timestamp(epoch_seconds: float) -> str|
+|`_write_cache`|fn|priv|106-109|def _write_cache(|
+|`_gate_allows_request`|fn|priv|134-136|def _gate_allows_request(|
+|`_parse_version`|fn|priv|155-166|def _parse_version(version: str) -> tuple[int, ...]|
+|`_fetch_latest_pypi_version`|fn|priv|167-190|def _fetch_latest_pypi_version() -> str|
+|`_fetch_latest_github_version`|fn|priv|191-218|def _fetch_latest_github_version() -> str|
+|`_format_report_row`|fn|priv|219-229|def _format_report_row(label: str, value: str) -> str|
+|`_print_colored`|fn|priv|230-240|def _print_colored(color: str, message: str) -> None|
+|`_report_failure`|fn|priv|241-244|def _report_failure(|
+|`run_version_check`|fn|pub|259-302|def run_version_check(installed_version: str, force: bool...|
+|`run_version_report`|fn|pub|303-367|def run_version_report(installed_version: str) -> None|
 
 
 ---

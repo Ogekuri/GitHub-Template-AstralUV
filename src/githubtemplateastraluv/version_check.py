@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 ## @file version_check.py
-# @brief Online new-version check with idle-time cache, executed before CLI
-#        argument parsing.
-# @details Queries the GitHub releases endpoint with a hardcoded 2 s
-#          timeout, throttles repeats through an idle-time JSON cache under
-#          `$HOME`, and renders availability or failure notifications using
-#          the colors configured in the configuration subsystem (REQ-026),
-#          falling back to bright green / bright red schema defaults when
-#          configuration cannot be loaded. Success refreshes the cache with
-#          a 3600 s idle-delay; any failure backs off 86400 s.
+# @brief Online new-version check and dual-source version report executed
+#        before CLI argument parsing.
+# @details Queries the PyPI JSON API with a hardcoded 2 s timeout for the
+#          gated availability check, throttled through an idle-time JSON
+#          cache under `$HOME`, and renders the aligned three-row report
+#          (`--ver`) fetching both PyPI and the GitHub releases API.
+#          Notifications use the colors configured in the configuration
+#          subsystem (REQ-026), falling back to bright green / bright red
+#          schema defaults when configuration cannot be loaded. Success
+#          refreshes the cache with a 3600 s idle-delay; any failure backs
+#          off 86400 s.
 import json
 import os
 import time
@@ -19,8 +21,13 @@ from typing import Any
 
 from githubtemplateastraluv import config
 
-## @brief GitHub API endpoint returning latest release metadata (REQ-009).
-_RELEASES_ENDPOINT = (
+## @brief PyPI JSON API endpoint returning latest published version
+#        metadata (REQ-009, REQ-028).
+_PYPI_JSON_ENDPOINT = "https://pypi.org/pypi/githubtemplateastraluv/json"
+## @brief GitHub API endpoint returning latest release metadata; source of
+#        the report `Latest @ GitHub` row (REQ-029) and of the
+#        `--upgrade --develop` download (REQ-032).
+_GITHUB_RELEASES_ENDPOINT = (
     "https://api.github.com/repos/Ogekuri/"
     "GitHub-Template-AstralUV/releases/latest"
 )
@@ -41,6 +48,18 @@ _CACHE_RELATIVE_PATH = (
 #          configuration subsystem (config.notification_colors, REQ-026);
 #          only the reset suffix stays local.
 _ANSI_RESET = "\033[0m"
+## @brief Report row label for the installed version (REQ-027).
+_REPORT_LABEL_INSTALLED = "Current Installed"
+## @brief Report row label for the PyPI latest version (REQ-027).
+_REPORT_LABEL_PYPI = "Latest @ PyPI"
+## @brief Report row label for the GitHub latest release version (REQ-027).
+_REPORT_LABEL_GITHUB = "Latest @ GitHub"
+## @brief Label pad width keeping report version columns aligned (REQ-027).
+# @details Equals the length of the longest label `_REPORT_LABEL_INSTALLED`.
+_REPORT_LABEL_WIDTH = len(_REPORT_LABEL_INSTALLED)
+## @brief Placeholder replacing the version of a failed report source
+#        (REQ-030).
+_REPORT_UNAVAILABLE = "unavailable"
 
 
 def _cache_path() -> Path:
@@ -145,28 +164,67 @@ def _parse_version(version: str) -> tuple[int, ...]:
     return tuple(int(part) for part in text.split("."))
 
 
-def _fetch_latest_release() -> str:
-    """@brief GET the latest release payload and extract `tag_name`.
+def _fetch_latest_pypi_version() -> str:
+    """@brief GET the PyPI JSON payload and extract the latest version.
 
-    @return {str} Latest release tag (e.g. `v1.2.3`).
+    @details Sends a plain GET to the PyPI JSON API; no Accept header is
+             required. Payload shape: `{"info": {"version": "x.y.z"}}`.
+    @return {str} Latest published version in `x.y.z` format.
+    @throws {urllib.error.URLError} On HTTP and network failures; includes
+            HTTPError carrying the status code (e.g. 429, 503).
+    @throws {TimeoutError} On the 2-second timeout expiry.
+    @throws {ValueError} On unparsable payload or missing version.
+    @satisfies REQ-009 REQ-028 CTN-006
+    """
+    request = urllib.request.Request(_PYPI_JSON_ENDPOINT)
+    with urllib.request.urlopen(
+        request, timeout=_HTTP_TIMEOUT_SECONDS
+    ) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    info = payload.get("info") if isinstance(payload, dict) else None
+    version = info.get("version") if isinstance(info, dict) else None
+    if not isinstance(version, str) or not version:
+        raise ValueError("PyPI payload misses info.version")
+    return version
+
+
+def _fetch_latest_github_version() -> str:
+    """@brief GET the latest GitHub release payload and extract its version.
+
+    @details Strips one leading `v`/`V` prefix from `tag_name`; the returned
+             value is exactly the version downloaded by
+             `--upgrade --develop` (REQ-032) regardless of the branch the
+             release was tagged on.
+    @return {str} Latest release version in `x.y.z` format.
     @throws {urllib.error.URLError} On HTTP and network failures; includes
             HTTPError carrying the status code (e.g. 429, 503).
     @throws {TimeoutError} On the 2-second timeout expiry.
     @throws {ValueError} On unparsable payload or missing tag_name.
-    @satisfies REQ-009 CTN-006
+    @satisfies REQ-029 CTN-006
     """
     request = urllib.request.Request(
-        _RELEASES_ENDPOINT,
+        _GITHUB_RELEASES_ENDPOINT,
         headers={"Accept": "application/vnd.github+json"},
     )
     with urllib.request.urlopen(
         request, timeout=_HTTP_TIMEOUT_SECONDS
     ) as response:
         payload = json.loads(response.read().decode("utf-8"))
-    tag_name = payload.get("tag_name")
+    tag_name = payload.get("tag_name") if isinstance(payload, dict) else None
     if not isinstance(tag_name, str) or not tag_name:
         raise ValueError("release payload misses tag_name")
-    return tag_name
+    return tag_name[1:] if tag_name[:1] in ("v", "V") else tag_name
+
+
+def _format_report_row(label: str, value: str) -> str:
+    """@brief Render one report row with the label padded to 17 columns.
+
+    @param label {str} Row label (e.g. `Latest @ PyPI`).
+    @param value {str} Version string or `unavailable` placeholder.
+    @return {str} Row shaped `<label padded to 17> : <value>` (REQ-027).
+    @satisfies REQ-027
+    """
+    return f"{label:<{_REPORT_LABEL_WIDTH}} : {value}"
 
 
 def _print_colored(color: str, message: str) -> None:
@@ -199,10 +257,10 @@ def _report_failure(
 
 
 def run_version_check(installed_version: str, force: bool = False) -> None:
-    """@brief Execute the gated (or forced) online version check.
+    """@brief Execute the gated (or forced) online version check on PyPI.
 
     @details Flow: cache read -> gate evaluation (skipped when `force`) ->
-             HTTPS fetch -> version compare -> notify -> cache write.
+             PyPI JSON fetch -> version compare -> notify -> cache write.
              Notification colors come from the configuration subsystem
              with schema-default fallback (REQ-026). Success always
              refreshes the cache with the 3600 s idle-delay (REQ-013,
@@ -222,8 +280,8 @@ def run_version_check(installed_version: str, force: bool = False) -> None:
     if not force and not _gate_allows_request(cache, check_epoch):
         return
     try:
-        latest_tag = _fetch_latest_release()
-        available = _parse_version(latest_tag)
+        latest_version = _fetch_latest_pypi_version()
+        available = _parse_version(latest_version)
         installed = _parse_version(installed_version)
     except (
         urllib.error.URLError,
@@ -236,7 +294,73 @@ def run_version_check(installed_version: str, force: bool = False) -> None:
     if available > installed:
         _print_colored(
             colors["new_version_color"],
-            f"New version available: {latest_tag} "
+            f"New version available: {latest_version} "
             f"(installed version: {installed_version})",
         )
     _write_cache(_cache_path(), check_epoch, _IDLE_DELAY_SUCCESS_SECONDS)
+
+
+def run_version_report(installed_version: str) -> None:
+    """@brief Execute the forced dual-source version report (`--ver`).
+
+    @details Flow: fetch PyPI -> fetch GitHub -> emit the three aligned
+             rows. Each failed fetch emits one bright red note naming the
+             failed source with the configured error color (REQ-030) and
+             its row prints `unavailable` in place of the version. Rows
+             print in order: installed, PyPI, GitHub; version columns
+             aligned via a 17-character label pad (REQ-027). The GitHub
+             row shows the latest release tag stripped of its `v` prefix,
+             exactly the version downloaded by `--upgrade --develop`
+             (REQ-029). The idle-time gate and cache file are bypassed
+             (REQ-002); the cache write follows the PyPI outcome only:
+             3600 s on success, 86400 s on failure (REQ-031). The call
+             always returns normally (A-06).
+    @param installed_version {str} Installed version in `x.y.z` format.
+    @return {None}
+    @satisfies REQ-002 REQ-027 REQ-028 REQ-029 REQ-030 REQ-031 REQ-026
+    """
+    colors = config.notification_colors()
+    check_epoch = time.time()
+    pypi_version: str | None = None
+    github_version: str | None = None
+    try:
+        pypi_version = _fetch_latest_pypi_version()
+    except (
+        urllib.error.URLError,
+        TimeoutError,
+        OSError,
+        ValueError,
+    ) as error:
+        _print_colored(
+            colors["error_color"], f"Version check failed @ PyPI: {error}"
+        )
+    try:
+        github_version = _fetch_latest_github_version()
+    except (
+        urllib.error.URLError,
+        TimeoutError,
+        OSError,
+        ValueError,
+    ) as error:
+        _print_colored(
+            colors["error_color"], f"Version check failed @ GitHub: {error}"
+        )
+    print(_format_report_row(_REPORT_LABEL_INSTALLED, installed_version))
+    print(
+        _format_report_row(
+            _REPORT_LABEL_PYPI,
+            pypi_version if pypi_version is not None else _REPORT_UNAVAILABLE,
+        )
+    )
+    print(
+        _format_report_row(
+            _REPORT_LABEL_GITHUB,
+            github_version
+            if github_version is not None
+            else _REPORT_UNAVAILABLE,
+        )
+    )
+    if pypi_version is not None:
+        _write_cache(_cache_path(), check_epoch, _IDLE_DELAY_SUCCESS_SECONDS)
+    else:
+        _write_cache(_cache_path(), check_epoch, _IDLE_DELAY_FAILURE_SECONDS)
