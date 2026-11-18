@@ -163,6 +163,10 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **DES-050**: MUST restrict `scripts/clean.sh` removals to the enumerated generated paths and MUST NOT delete tracked files, untracked user files, `dist/` release artifacts, or `$HOME` application data.
 - **DES-051**: MUST execute `scripts/clean.sh` from `scripts/build.sh` after toolchain validation and before every build action, terminating non-zero when the cleanup fails.
 - **DES-052**: MUST guarantee that two consecutive `scripts/build.sh` executions perform the build from the identical generated-path startup state.
+- **DES-053**: MUST draw every `--print` and `--info` table using exclusively the characters `─`, `│`, `╭`, `╮`, `╰`, `╯`, `├`, `┤`, `┬`, `┴`, `┼`, `═`, `╞`, `╪`, `╡`.
+- **DES-054**: MUST render table outer borders with rounded corners: `╭`/`╮` on the top border, `╰`/`╯` on the bottom border, `┬`/`┴` column junctions.
+- **DES-055**: MUST separate each table header row from the content rows with the double-line border built from `╞`, `═`, `╪`, `╡`.
+- **DES-056**: MUST separate consecutive table content rows with the single-line border built from `├`, `─`, `┼`, `┤`.
 
 ### 3.2 Functions
 - **REQ-001**: MUST print the verbatim English help screen (template below) when invoked with `--help` or with no arguments.
@@ -247,3 +251,4 @@ Commands:
 - **TST-021**: MUST verify DES-042 and DES-043 by parsing `.github/workflows/release-pypi.yml`; pass iff the release and publish jobs check out the tag and consume the `dist/` artifacts present at the tagged commit, and no build, `scripts/build.sh`, `scripts/pre-release-check.sh`, or build-preparatory step executes.
 - **TST-022**: MUST verify DES-044 through DES-050 by executing `scripts/clean.sh` twice in a sandbox repository seeded with generated paths, a tracked file, an untracked user file, and `dist/` content; pass iff the first run removes every generated path, the preserved content survives both runs, and the second run exits 0 as a removal-free no-op.
 - **TST-023**: MUST verify DES-051 and CTN-011 by parsing `scripts/build.sh`, `scripts/clean.sh`, and `scripts/pre-release-check.sh`; pass iff the pre-build cleanup delegates to `scripts/clean.sh` before the `dist/` stale-artifact removal and no destructive git command appears in any of the three scripts.
+- **TST-024**: MUST verify DES-053, DES-054, DES-055, and DES-056 by asserting every `--print` and `--info` table line uses only the mandated glyphs with rounded corners, the double-line header separator, and single-line row separators.

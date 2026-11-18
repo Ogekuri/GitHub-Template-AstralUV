@@ -251,7 +251,7 @@ message embeds schema-valid usage examples.
 
 ---
 
-# config_render.py | Python | 458L | 18 symbols | 6 imports | 41 comments
+# config_render.py | Python | 474L | 18 symbols | 6 imports | 41 comments
 > Path: `src/githubtemplateastraluv/config_render.py`
 
 ## Imports
@@ -276,42 +276,50 @@ from githubtemplateastraluv import config
 - @param text {str} Text to measure.
 - @return {int} Display width in terminal cells.
 
-### fn `def format_table(headers: list[str], rows: list[list[str]]) -> list[str]` (L77-122)
+### fn `def format_table(headers: list[str], rows: list[list[str]]) -> list[str]` (L77-138)
 - @brief Render a rectangular box-drawing table (DES-013).
-- @details Column widths derive from the maximum display width of the header and all cells plus one space of padding on each side; every border and row shares identical column boundaries, so `┬`, `┼`, and `┴` align vertically with the `│` separators.
+- @details Column widths derive from the maximum display width of the header and all cells plus one space of padding on each side; every border and row shares identical column boundaries, so `┬`, `┼`, and `┴` align vertically with the `│` separators. Glyph contract (DES-053..DES-056): rounded outer corners `╭`/`╮`/`╰`/`╯`; single-line borders built from `─` with `┬`/`┴` top/bottom junctions and `├`/`┼`/`┤` row-separator junctions; double-line header separator `╞═..╪..═╡` between the header row and the content rows.
 - @param headers {list[str]} Column header cells.
 - @param rows {list[list[str]]} Data rows, each with len(headers) cells.
 - @return {list[str]} Physical table lines (borders and rows).
+- @satisfies DES-013, DES-053, DES-054, DES-055, DES-056
 
-### fn `def border(left: str, middle: str, right: str) -> str` (L95-104)
+### fn `def border(left: str, horizontal: str, middle: str, right: str) -> str` (L101-113)
 - @brief Render a rectangular box-drawing table (DES-013).
 - @brief Render one horizontal border line.
 - @details Column widths derive from the maximum display width of the
 header and all cells plus one space of padding on each side;
 every border and row shares identical column boundaries, so
 `┬`, `┼`, and `┴` align vertically with the `│` separators.
+Glyph contract (DES-053..DES-056): rounded outer corners
+`╭`/`╮`/`╰`/`╯`; single-line borders built from `─` with
+`┬`/`┴` top/bottom junctions and `├`/`┼`/`┤` row-separator
+junctions; double-line header separator `╞═..╪..═╡` between
+the header row and the content rows.
 - @param headers {list[str]} Column header cells.
 - @param rows {list[list[str]]} Data rows, each with len(headers) cells.
 - @param left {str} Left corner glyph.
+- @param horizontal {str} Horizontal fill glyph: `─` for single lines, `═` for the double header separator.
 - @param middle {str} Column junction glyph.
 - @param right {str} Right corner glyph.
 - @return {list[str]} Physical table lines (borders and rows).
 - @return {str} Complete border line.
+- @satisfies DES-013, DES-053, DES-054, DES-055, DES-056
 
-### fn `def data_row(cells: list[str]) -> str` (L105-116)
+### fn `def data_row(cells: list[str]) -> str` (L114-125)
 - @brief Render one padded data row line.
 - @param cells {list[str]} Row cells; display-padded to column width.
 - @return {str} Complete row line sharing the border boundaries.
 
-### fn `def render_tree(root: ConfigNode) -> str` (L123-151)
+### fn `def render_tree(root: ConfigNode) -> str` (L139-167)
 - @brief Render a node hierarchy with the canonical prefix algorithm.
 - @details Implements the normative traversal: the display root prints without a marker and its attached details use a four-space indent; every real child receives exactly one `├── `/`└── ` edge preceded by one four-character segment per ancestor that has a later sibling; attached details prepend the same ancestor segments plus exactly one own continuation segment (`│ ` when the node has a later sibling, four spaces otherwise). Detail lines never carry structural edge markers and never add structural depth (DES-012).
 - @param root {ConfigNode} Display root (virtual root or requested subtree root).
 - @return {str} Complete multi-line rendering without trailing newline.
 
-### fn `def _emit_node(` `priv` (L152-156)
+### fn `def _emit_node(` `priv` (L168-172)
 
-### fn `def _selection_rows(param: config.ParamSpec, current: str) -> list[list[str]]` `priv` (L187-199)
+### fn `def _selection_rows(param: config.ParamSpec, current: str) -> list[list[str]]` `priv` (L203-215)
 - @brief Emit one real node, its details, then its child nodes.
 - @brief Build `Sel | Value` rows with exactly one active marker.
 - @details Recursive worker of `render_tree`; `ancestor_has_next` holds
@@ -326,20 +334,20 @@ ancestor has a later sibling (REQ-019 connector grammar).
 - @return {None}
 - @return {list[list[str]]} One `[*]` row and `[ ]` rows in enum order.
 
-### fn `def _color_meaning(token: str) -> str` `priv` (L200-209)
+### fn `def _color_meaning(token: str) -> str` `priv` (L216-225)
 - @brief Build the Meaning cell text for one enum color token.
 - @param token {str} Selection enum token present in `COLOR_ANSI`.
 - @return {str} Text naming the ANSI SGR code and human-readable color.
 
-### fn `def _build_print_section(` `priv` (L210-212)
+### fn `def _build_print_section(` `priv` (L226-228)
 
-### fn `def _build_print_parameter(` `priv` (L237-240)
+### fn `def _build_print_parameter(` `priv` (L253-256)
 - @brief Build a `--print` node for one section with parameter children.
 - @param section {config.SectionSpec} Section schema descriptor.
 - @param payload {dict[str, Any]} Current configuration values.
 - @return {ConfigNode} Section node carrying parameter child nodes.
 
-### fn `def _build_info_section(section: config.SectionSpec) -> ConfigNode` `priv` (L268-298)
+### fn `def _build_info_section(section: config.SectionSpec) -> ConfigNode` `priv` (L284-314)
 - @brief Build a `--print` node for one selection parameter.
 - @brief Build an `--info` node for one fixed-schema section.
 - @details Heading shows `Token = <JSON value>` plus `(default)` or
@@ -354,9 +362,9 @@ ancestor has a later sibling (REQ-019 connector grammar).
 - @return {ConfigNode} Parameter node with table detail lines.
 - @return {ConfigNode} Section node with metadata details and children.
 
-### fn `def _build_info_parameter(` `priv` (L299-301)
+### fn `def _build_info_parameter(` `priv` (L315-317)
 
-### fn `def build_print_root(` (L345-347)
+### fn `def build_print_root(` (L361-363)
 - @brief Build an `--info` node for one selection parameter.
 - @details Heading reads `Token - [Type: constraints] description`;
 attached details are the Default line with its restore
@@ -367,7 +375,7 @@ schema-valid example value, and the `Allowed Values` table
 - @param param {config.ParamSpec} Parameter schema descriptor.
 - @return {ConfigNode} Parameter node with documentation details.
 
-### fn `def build_info_root(payload: dict[str, Any], path: str | None) -> ConfigNode` (L384-411)
+### fn `def build_info_root(payload: dict[str, Any], path: str | None) -> ConfigNode` (L400-427)
 - @brief Build the display root for `--print`.
 - @brief Build the display root for `--info`.
 - @details Without a path the virtual `Application_Configuration` root
@@ -383,18 +391,18 @@ followed by its real descendants, without invented ancestors
 - @return {ConfigNode} Display root node.
 - @return {ConfigNode} Display root node.
 
-### fn `def _fail(error: config.ConfigError) -> int` `priv` (L412-421)
+### fn `def _fail(error: config.ConfigError) -> int` `priv` (L428-437)
 - @brief Report a rendering-command failure on stderr.
 - @param error {config.ConfigError} Failure carrying the diagnostic.
 - @return {int} Always 1 (REQ-023).
 
-### fn `def handle_print(args: list[str]) -> int` (L422-441)
+### fn `def handle_print(args: list[str]) -> int` (L438-457)
 - @brief Execute `--print [Path]` (REQ-019).
 - @details Bootstraps storage, loads strictly, builds the display tree, and prints the rendering on stdout; failures print nothing on stdout and report one stderr diagnostic with exit 1.
 - @param args {list[str]} CLI argument tokens excluding program name.
 - @return {int} 0 on success; 1 on failure.
 
-### fn `def handle_info(args: list[str]) -> int` (L442-459)
+### fn `def handle_info(args: list[str]) -> int` (L458-475)
 - @brief Execute `--info [Path]` (REQ-020).
 - @details Shares the renderer with `--print`; renders schema documentation with defaults and complete command examples.
 - @param args {list[str]} CLI argument tokens excluding program name.
@@ -405,22 +413,22 @@ followed by its real descendants, without invented ancestors
 |---|---|---|---|---|
 |`ConfigNode`|class|pub|36-57|class ConfigNode|
 |`display_width`|fn|pub|58-76|def display_width(text: str) -> int|
-|`format_table`|fn|pub|77-122|def format_table(headers: list[str], rows: list[list[str]...|
-|`border`|fn|pub|95-104|def border(left: str, middle: str, right: str) -> str|
-|`data_row`|fn|pub|105-116|def data_row(cells: list[str]) -> str|
-|`render_tree`|fn|pub|123-151|def render_tree(root: ConfigNode) -> str|
-|`_emit_node`|fn|priv|152-156|def _emit_node(|
-|`_selection_rows`|fn|priv|187-199|def _selection_rows(param: config.ParamSpec, current: str...|
-|`_color_meaning`|fn|priv|200-209|def _color_meaning(token: str) -> str|
-|`_build_print_section`|fn|priv|210-212|def _build_print_section(|
-|`_build_print_parameter`|fn|priv|237-240|def _build_print_parameter(|
-|`_build_info_section`|fn|priv|268-298|def _build_info_section(section: config.SectionSpec) -> C...|
-|`_build_info_parameter`|fn|priv|299-301|def _build_info_parameter(|
-|`build_print_root`|fn|pub|345-347|def build_print_root(|
-|`build_info_root`|fn|pub|384-411|def build_info_root(payload: dict[str, Any], path: str | ...|
-|`_fail`|fn|priv|412-421|def _fail(error: config.ConfigError) -> int|
-|`handle_print`|fn|pub|422-441|def handle_print(args: list[str]) -> int|
-|`handle_info`|fn|pub|442-459|def handle_info(args: list[str]) -> int|
+|`format_table`|fn|pub|77-138|def format_table(headers: list[str], rows: list[list[str]...|
+|`border`|fn|pub|101-113|def border(left: str, horizontal: str, middle: str, right...|
+|`data_row`|fn|pub|114-125|def data_row(cells: list[str]) -> str|
+|`render_tree`|fn|pub|139-167|def render_tree(root: ConfigNode) -> str|
+|`_emit_node`|fn|priv|168-172|def _emit_node(|
+|`_selection_rows`|fn|priv|203-215|def _selection_rows(param: config.ParamSpec, current: str...|
+|`_color_meaning`|fn|priv|216-225|def _color_meaning(token: str) -> str|
+|`_build_print_section`|fn|priv|226-228|def _build_print_section(|
+|`_build_print_parameter`|fn|priv|253-256|def _build_print_parameter(|
+|`_build_info_section`|fn|priv|284-314|def _build_info_section(section: config.SectionSpec) -> C...|
+|`_build_info_parameter`|fn|priv|315-317|def _build_info_parameter(|
+|`build_print_root`|fn|pub|361-363|def build_print_root(|
+|`build_info_root`|fn|pub|400-427|def build_info_root(payload: dict[str, Any], path: str | ...|
+|`_fail`|fn|priv|428-437|def _fail(error: config.ConfigError) -> int|
+|`handle_print`|fn|pub|438-457|def handle_print(args: list[str]) -> int|
+|`handle_info`|fn|pub|458-475|def handle_info(args: list[str]) -> int|
 
 
 ---

@@ -230,8 +230,9 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
         tree [`src/githubtemplateastraluv/config_render.py`]
         - `config.resolve_segments(...)`
           [`src/githubtemplateastraluv/config.py`]
-        - `config_render.format_table(...)`: measured-width rectangular
-          table [`src/githubtemplateastraluv/config_render.py`]
+        - `config_render.format_table(...)`: measured-width rounded
+          box-drawing table with double-line header separator
+          [`src/githubtemplateastraluv/config_render.py`]
           - `config_render.display_width(...)`: terminal cell width
             [`src/githubtemplateastraluv/config_render.py`]
       - `config_render.render_tree(...)`: canonical prefix-algorithm

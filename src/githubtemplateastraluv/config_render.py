@@ -81,9 +81,15 @@ def format_table(headers: list[str], rows: list[list[str]]) -> list[str]:
              header and all cells plus one space of padding on each side;
              every border and row shares identical column boundaries, so
              `┬`, `┼`, and `┴` align vertically with the `│` separators.
+             Glyph contract (DES-053..DES-056): rounded outer corners
+             `╭`/`╮`/`╰`/`╯`; single-line borders built from `─` with
+             `┬`/`┴` top/bottom junctions and `├`/`┼`/`┤` row-separator
+             junctions; double-line header separator `╞═..╪..═╡` between
+             the header row and the content rows.
     @param headers {list[str]} Column header cells.
     @param rows {list[list[str]]} Data rows, each with len(headers) cells.
     @return {list[str]} Physical table lines (borders and rows).
+    @satisfies DES-013, DES-053, DES-054, DES-055, DES-056
     """
     widths = [
         max(display_width(headers[column]), *(display_width(row[column]) for row in rows))
@@ -92,15 +98,18 @@ def format_table(headers: list[str], rows: list[list[str]]) -> list[str]:
         for column in range(len(headers))
     ]
 
-    def border(left: str, middle: str, right: str) -> str:
+    def border(left: str, horizontal: str, middle: str, right: str) -> str:
         """@brief Render one horizontal border line.
 
         @param left {str} Left corner glyph.
+        @param horizontal {str} Horizontal fill glyph: `─` for single
+               lines, `═` for the double header separator.
         @param middle {str} Column junction glyph.
         @param right {str} Right corner glyph.
         @return {str} Complete border line.
         """
-        return left + middle.join("─" * (width + 2) for width in widths) + right
+        segments = (horizontal * (width + 2) for width in widths)
+        return left + middle.join(segments) + right
 
     def data_row(cells: list[str]) -> str:
         """@brief Render one padded data row line.
@@ -114,9 +123,16 @@ def format_table(headers: list[str], rows: list[list[str]]) -> list[str]:
         )
         return f"│ {padded} │"
 
-    lines = [border("┌", "┬", "┐"), data_row(headers), border("├", "┼", "┤")]
-    lines.extend(data_row(row) for row in rows)
-    lines.append(border("└", "┴", "┘"))
+    lines = [
+        border("╭", "─", "┬", "╮"),
+        data_row(headers),
+        border("╞", "═", "╪", "╡"),
+    ]
+    for index, row in enumerate(rows):
+        if index:
+            lines.append(border("├", "─", "┼", "┤"))
+        lines.append(data_row(row))
+    lines.append(border("╰", "─", "┴", "╯"))
     return lines
 
 
