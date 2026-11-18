@@ -68,6 +68,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **CTN-007**: MUST hardcode the standard idle-delay to 3600 seconds and the failure backoff idle-delay to 86400 seconds.
 - **CTN-008**: MUST NOT expose configuration surfaces (CLI options or files) altering endpoint, timeout, or idle-delay values; the cache directory MUST derive from `$HOME`.
 - **CTN-009**: MUST execute `--upgrade` and `--uninstall` side effects only on Linux, delegating to the installed `uv` command-line tool.
+- **CTN-010**: MUST NOT set `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` or `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` in `.github/workflows/release-uvx.yml`.
 
 ## 3. Requirements
 
@@ -117,6 +118,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **DES-012**: MUST render `--print` and `--info` through one shared data-driven renderer emitting UTF-8 box-drawing trees from typed configuration nodes.
 - **DES-013**: MUST produce every table through one measured-width formatter rendering rectangular box-drawing rows anchored to the owning parameter detail prefix.
 - **DES-014**: MUST persist `--set` and `--unset` updates atomically via a same-directory temporary file, fsync, atomic replace, and prior-file preservation on any failure.
+- **DES-015**: MUST pin every JavaScript action referenced by `.github/workflows/release-uvx.yml` to a major version whose declared runtime is Node24 or later.
 
 ### 3.2 Functions
 - **REQ-001**: MUST print the verbatim English help screen (template below) when invoked with `--help` or with no arguments.
@@ -173,3 +175,4 @@ Commands:
 - **TST-009**: MUST verify tree structural invariants and table alignment: real-node edges match schema topology and every detail line carries its owner prefix.
 - **TST-010**: MUST verify the configuration CLI by exercising `--get`, `--set`, `--unset`, `--print`, `--info`, and `--print-raw` for valid, invalid, and reset flows with isolated `$HOME`.
 - **TST-011**: MUST verify REQ-026 by asserting default bright green and bright red notifications and configured-color rendering after `--set`.
+- **TST-012**: MUST verify DES-015 and CTN-010 by parsing `.github/workflows/release-uvx.yml` and asserting every `uses:` pin meets the Node24-or-later runtime constraint with no fallback variable present.

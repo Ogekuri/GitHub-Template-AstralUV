@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 ## @file test_githubtemplateastraluv.py
-# @brief HDT unit suite (Generator mode) covering TST-001..TST-007 for the
-#        githubtemplateastraluv CLI.
+# @brief HDT unit suite (Generator mode) covering TST-001..TST-007 and
+#        TST-012 for the githubtemplateastraluv CLI and its release
+#        workflow.
 # @details HDT static-analysis artifact (section 7.1):
 #          - UUTs and levels: L0 = management.is_linux,
 #            management._management_entry, version_check._parse_version,
@@ -14,10 +15,15 @@
 #            filesystem ($HOME redirected into tmp_path), process spawn
 #            (subprocess.run mocked), wall clock (tolerance-bounded
 #            assertions on the 3600/86400 second deltas).
+#          - Additional L0 contract checks (TST-012): action pins of
+#            `.github/workflows/release-uvx.yml` versus the Node24-or-later
+#            manifest (DES-015, CTN-010); the tracked workflow file is the
+#            read-only deterministic fixture.
 #          - Execution plan (dev signal): `uv run pytest` from the project
 #            root; CI gates L0 -> L1 -> L2 fail-fast outside test bodies.
 import email.message
 import json
+from pathlib import Path
 import re
 import time
 import urllib.error
@@ -407,3 +413,100 @@ def test_timeout_failure_prints_red_and_backs_off_86400(
     assert "\033[91m" in out
     assert "timed out" in out
     _assert_cache_fields(isolated_home, 86400)
+
+
+## @brief Release workflow contract file exercised by TST-012.
+RELEASE_WORKFLOW_PATH = (
+    Path(__file__).resolve().parents[1]
+    / ".github"
+    / "workflows"
+    / "release-uvx.yml"
+)
+
+## @brief Minimum major version per workflow action whose runtime is
+#         Node24 or later (DES-015).
+# @details `astral-sh/setup-uv` is a composite action declaring no
+#          JavaScript runtime; its entry keeps the manifest exhaustive
+#          over every `uses:` pin of the release workflow.
+NODE24_ACTION_MIN_MAJOR = {
+    "actions/checkout": 5,
+    "actions/setup-python": 7,
+    "astral-sh/setup-uv": 3,
+    "actions/attest-build-provenance": 4,
+    "mikepenz/release-changelog-builder-action": 6,
+    "softprops/action-gh-release": 3,
+}
+
+## @brief Node20 back-compat environment variables forbidden by CTN-010.
+NODE20_FALLBACK_VARIABLES = (
+    "FORCE_JAVASCRIPT_ACTIONS_TO_NODE24",
+    "ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION",
+)
+
+
+def _release_workflow_pins():
+    """@brief Extract every `uses:` pin from the release workflow.
+
+    @details Reads `RELEASE_WORKFLOW_PATH` and applies the line pattern
+            `uses:` plus one non-space token; returns pin tokens in
+            declaration order. Complexity: O(L) over file lines L.
+    @return {list[str]} Pin tokens in `owner/repo@version` form.
+    """
+    pattern = re.compile(r"\buses:\s*(\S+)")
+    pins = []
+    for line in RELEASE_WORKFLOW_PATH.read_text(
+        encoding="utf-8"
+    ).splitlines():
+        match = pattern.search(line)
+        if match:
+            pins.append(match.group(1))
+    return pins
+
+
+@pytest.mark.parametrize(
+    "pin", _release_workflow_pins(), ids=lambda pin: pin
+)
+def test_release_workflow_pin_is_node24_or_later(pin):
+    """@brief TST-012 (DES-015): one pin satisfies the Node24 manifest.
+
+    @details expected_output = none; expected_exception = AssertionError
+            when the pin action is unlisted or its major version is below
+            the Node24-or-later minimum major.
+    @param pin {str} Workflow pin token `owner/repo@version`.
+    """
+    action, _, version = pin.partition("@")
+    assert action in NODE24_ACTION_MIN_MAJOR, pin
+    assert version.startswith("v"), pin
+    major = int(version[1:].split(".")[0])
+    assert major >= NODE24_ACTION_MIN_MAJOR[action], pin
+
+
+def test_release_workflow_declares_node24_release_stack():
+    """@brief TST-012 boundary: golden pin oracle for the migrated stack.
+
+    @details expected_output = none; expected_exception = AssertionError
+            when the declaration-order pin list differs from the migrated
+            Node24 stack (two checkout pins, setup-python, setup-uv,
+            attest-build-provenance, changelog builder, gh-release).
+    """
+    assert _release_workflow_pins() == [
+        "actions/checkout@v5",
+        "actions/checkout@v5",
+        "actions/setup-python@v7",
+        "astral-sh/setup-uv@v3",
+        "actions/attest-build-provenance@v4",
+        "mikepenz/release-changelog-builder-action@v6",
+        "softprops/action-gh-release@v3",
+    ]
+
+
+def test_release_workflow_has_no_node20_fallback_variables():
+    """@brief TST-012 (CTN-010): Node20 opt-out variables stay unset.
+
+    @details expected_output = none; expected_exception = AssertionError
+            when any forbidden Node20 fallback or forced-runtime variable
+            name occurs in the workflow text.
+    """
+    workflow_text = RELEASE_WORKFLOW_PATH.read_text(encoding="utf-8")
+    for variable in NODE20_FALLBACK_VARIABLES:
+        assert variable not in workflow_text, variable
