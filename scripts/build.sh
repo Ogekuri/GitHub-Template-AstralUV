@@ -6,9 +6,11 @@
 #/**
 # * @file build.sh
 # * @brief Reproducible release-packaging builder for githubtemplateastraluv.
-# * @details Validates the mandatory toolchain, removes stale generated
-# *          distribution artifacts from `dist/` while preserving every other
-# *          pre-existing file, runs the project-native build procedure
+# * @details Validates the mandatory toolchain, restores the canonical
+# *          pre-build startup state by delegating to `scripts/clean.sh`,
+# *          removes stale generated distribution artifacts from `dist/`
+# *          while preserving every other pre-existing file, runs the
+# *          project-native build procedure
 # *          `uv run --frozen --with build python -m build` from the
 # *          repository root, verifies that at least one sdist and one
 # *          wheel were produced, and prints an artifact summary. The
@@ -21,7 +23,8 @@
 # * @pre The script executes inside the git repository (any working directory).
 # * @post On success `dist/` holds the fresh sdist and wheel and all stale
 # *       generated artifacts are gone; on failure the exit status is non-zero.
-# * @satisfies PRJ-007 DES-020 DES-021 DES-022 DES-023 DES-024 DES-025 CTN-011
+# * @satisfies PRJ-007 DES-020 DES-021 DES-022 DES-023 DES-024 DES-025
+# *            DES-051 DES-052 CTN-011
 # */
 
 #/**
@@ -73,6 +76,23 @@ for build_tool in git uv; do
         exit 1
     fi
 done
+
+#/**
+# * @brief Restore the canonical pre-build startup state via scripts/clean.sh.
+# * @details Delegates the repository cleanup to the dedicated script so the
+# *          build never starts from stale bytecode, package metadata, tool
+# *          caches, build intermediates, coverage data, or a mutated
+# *          virtual environment; `uv run` subsequently rebuilds `.venv/`
+# *          from the locked dependency set. Delegating to the single
+# *          cleanup implementation guarantees that two consecutive builds
+# *          execute from the identical generated-path state. A failing
+# *          cleanup aborts the build non-zero before any build action.
+# * @satisfies DES-051 DES-052
+# */
+if ! bash "${SCRIPT_DIR}/clean.sh"; then
+    echo "ERROR: Pre-build cleanup failed: scripts/clean.sh" >&2
+    exit 1
+fi
 
 #/**
 # * @brief Remove stale generated distribution artifacts from dist/.

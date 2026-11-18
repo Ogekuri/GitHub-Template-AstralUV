@@ -11,15 +11,16 @@ paths only; no line numbers. Process IDs are stable.
 | `PROC:uv-runtime` | process | `PROC:launcher` | Transient uv process that resolves/creates the project virtual environment and launches the CLI | uv CLI argv: `run --project <BASE_DIR> python -m githubtemplateastraluv` | `scripts/templateastraluv.sh` |
 | `PROC:main` | process | `PROC:uv-runtime` (via launcher) or user interpreter | CLI application process: gated version check plus management-command and configuration-CLI dispatch | `githubtemplateastraluv.__main__:main`; module guard `python -m githubtemplateastraluv` | `src/githubtemplateastraluv/__main__.py`, `src/githubtemplateastraluv/core.py`, `src/githubtemplateastraluv/config.py`, `src/githubtemplateastraluv/config_render.py` |
 | `PROC:uv-tool-manage` | process | `PROC:main` | Transient child process executing `uv tool install` (standard or `--force` variant) / `uv tool uninstall` (Linux only) | uv CLI argv from `UPGRADE_COMMAND` / `UPGRADE_FORCE_COMMAND` / `UPGRADE_DEVELOP_COMMAND` / `UPGRADE_DEVELOP_FORCE_COMMAND` / `UNINSTALL_COMMAND` | `src/githubtemplateastraluv/management.py` |
-| `PROC:build-tooling` | process | none (user shell) | Release-packaging wrapper validating the toolchain, pruning stale generated artifacts, and delegating the build | `scripts/build.sh` (bash top-level execution) | `scripts/build.sh` |
+| `PROC:build-tooling` | process | none (user shell) | Release-packaging wrapper validating the toolchain, restoring the clean startup state via `scripts/clean.sh`, pruning stale generated artifacts, and delegating the build | `scripts/build.sh` (bash top-level execution) | `scripts/build.sh` |
+| `PROC:clean-tooling` | process | `PROC:build-tooling` (delegated) or user shell | Repository cleanup wrapper removing execution-generated caches, bytecode, package metadata, tool caches, build intermediates, the uv virtual environment, and coverage data while preserving `dist/` | `scripts/clean.sh` (bash top-level execution) | `scripts/clean.sh` |
 | `PROC:uv-build-runtime` | process | `PROC:build-tooling` | Transient uv process that syncs the locked environment and runs the PEP 517 build backend to produce sdist and wheel into `dist/` | uv CLI argv: `run --frozen --with build python -m build` | `scripts/build.sh` |
 | `PROC:release-check` | process | none (user shell) | Release-readiness verifier running fail-fast checks (shell syntax, bytecode compilation, pytest suite, out-of-tree build, artifact validation) with baseline-guarded cleanup and integrity verification | `scripts/pre-release-check.sh` (bash top-level execution) | `scripts/pre-release-check.sh` |
 | `PROC:uv-check-runtime` | process | `PROC:release-check` | Transient uv children executing compileall, the pytest suite, the out-of-tree build, and the artifact validator | uv CLI argv: `run python -m compileall -q src tests`, `run pytest`, `run --frozen --with build python -m build --outdir <TMP>`, `run python <validator> <TMP>` | `scripts/pre-release-check.sh` |
 
 Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
 `PROC:uv-runtime`, `PROC:uv-tool-manage`, `PROC:build-tooling`,
-`PROC:uv-build-runtime`, `PROC:release-check`, `PROC:uv-check-runtime` —
-no explicit threads detected.
+`PROC:clean-tooling`, `PROC:uv-build-runtime`, `PROC:release-check`,
+`PROC:uv-check-runtime` — no explicit threads detected.
 
 ## Execution Units
 
@@ -291,18 +292,45 @@ no explicit threads detected.
   statements.
 - Lifecycle/trigger: starts on user invocation of `scripts/build.sh`;
   resolves the repository root independently of the invocation directory,
-  validates the toolchain (`git`, `uv`), deletes only stale generated
-  `dist/*.tar.gz` and `dist/*.whl` files, then spawns
-  `PROC:uv-build-runtime` and blocks until it ends; verifies that at least
-  one sdist and one wheel exist in `dist/`, prints the artifact summary,
-  and terminates non-zero on toolchain, build, or verification failure
-  (exit 0 on success). Generated release artifacts are intentionally kept
-  in `dist/`.
+  validates the toolchain (`git`, `uv`), restores the canonical
+  generated-path startup state by spawning `PROC:clean-tooling`
+  (`bash scripts/clean.sh`, non-zero status aborts the build), deletes
+  only stale generated `dist/*.tar.gz` and `dist/*.whl` files, then
+  spawns `PROC:uv-build-runtime` and blocks until it ends; verifies that
+  at least one sdist and one wheel exist in `dist/`, prints the artifact
+  summary, and terminates non-zero on toolchain, cleanup, build, or
+  verification failure (exit 0 on success). Generated release artifacts
+  are intentionally kept in `dist/`; the cleanup delegation guarantees
+  that two consecutive builds start from the identical state.
 - Internal Call-Trace Tree: no internal functions under `src/` (linear
   top-level shell script; no function definitions).
 - External Boundaries: `readlink -f`, `dirname`, `git rev-parse
-  --show-toplevel`, `command -v`, filesystem (`dist/` targeted delete and
-  kept artifacts), uv CLI invocation, stdout diagnostics.
+  --show-toplevel`, `command -v`, `bash scripts/clean.sh` delegation,
+  filesystem (`dist/` targeted delete and kept artifacts), uv CLI
+  invocation, stdout diagnostics.
+
+### PROC:clean-tooling
+
+- Entrypoint(s): bash interpreter executing `scripts/clean.sh` top-level
+  statements (standalone, or delegated by `PROC:build-tooling`).
+- Lifecycle/trigger: starts on direct user invocation or on the
+  `PROC:build-tooling` delegation after toolchain validation; resolves
+  the repository root independently of the invocation directory,
+  validates `git`, removes the fixed targets `.pytest_cache/`,
+  `.ruff_cache/`, `.mypy_cache/`, `build/`, `.venv/`, the coverage data
+  files `.coverage`/`.coverage.*`, and every `__pycache__/` and
+  `*.egg-info/` directory at any depth (collected first via a `./dist`
+  pruned `find`), logging each handled target; absent targets are a
+  successful no-op, any removal failure aborts non-zero, and generated
+  release artifacts under `dist/`, tracked files, untracked user files,
+  and `$HOME` application data are never touched.
+- Internal Call-Trace Tree: no internal functions under `src/` (shell
+  function `remove_target` is defined in `scripts/clean.sh`, outside
+  `src/`).
+- External Boundaries: `readlink -f`, `dirname`, `git rev-parse
+  --show-toplevel`, `command -v`, `cd`, `find` (`./dist` pruned
+  inventory), `rm -rf`, filesystem removals under the repository root,
+  stdout diagnostics.
 
 ### PROC:uv-build-runtime
 
@@ -376,6 +404,8 @@ no explicit threads detected.
 | 10 | `PROC:main` -> stderr | `print(..., file=sys.stderr)` | console stderr | `Error: ...` configuration diagnostics with exit status 1 | `src/githubtemplateastraluv/config.py`, `src/githubtemplateastraluv/config_render.py` |
 | 11 | `PROC:build-tooling` -> `PROC:uv-build-runtime` | child-process spawn, stdio inherited | uv CLI `run --frozen --with build python -m build` | argv with repository-root cwd; generated sdist/wheel in `dist/`; `returncode` propagated | `scripts/build.sh` |
 | 12 | `PROC:build-tooling` -> filesystem (dist/) | targeted file delete plus build-backend writes | `<repo root>/dist/` | stale `*.tar.gz`/`*.whl` removal before build; fresh sdist and wheel preserved after build | `scripts/build.sh` |
-| 13 | `PROC:release-check` -> `PROC:uv-check-runtime` | sequential child-process spawn, stdio inherited | uv CLI `run` (compileall / pytest / out-of-tree build / artifact validator) | phase argv; `returncode` drives the fail-fast abort | `scripts/pre-release-check.sh` |
-| 14 | `PROC:release-check` -> filesystem (system temp) | `mktemp -d` allocation, file writes, recursive removal | system temporary work directory | git-status baseline/current/final snapshots, out-of-tree build output, artifact validator script | `scripts/pre-release-check.sh` |
-| 15 | `PROC:release-check` -> filesystem (repository generated paths) | creation via test/build tooling, then baseline-diff `rm -rf` removal | `.venv/`, `__pycache__/`, `.pytest_cache/`, `*.egg-info/` under the repository | execution-generated caches and environments removed on success, failure, or signal; pre-existing content preserved | `scripts/pre-release-check.sh` |
+| 13 | `PROC:build-tooling` -> `PROC:clean-tooling` | child-process spawn (`bash scripts/clean.sh`), stdio inherited | pre-build repository cleanup | cleanup log lines on stdout; `returncode` gates the build (non-zero aborts) | `scripts/build.sh` |
+| 14 | `PROC:clean-tooling` -> filesystem (generated paths) | `rm -rf` removals of an inventory collected by a `./dist`-pruned `find` | `<repo root>/` | `.pytest_cache/`, `.ruff_cache/`, `.mypy_cache/`, `build/`, `.venv/`, `.coverage`/`.coverage.*`, `__pycache__/`, `*.egg-info/` removed; `dist/` and user content preserved | `scripts/clean.sh` |
+| 15 | `PROC:release-check` -> `PROC:uv-check-runtime` | sequential child-process spawn, stdio inherited | uv CLI `run` (compileall / pytest / out-of-tree build / artifact validator) | phase argv; `returncode` drives the fail-fast abort | `scripts/pre-release-check.sh` |
+| 16 | `PROC:release-check` -> filesystem (system temp) | `mktemp -d` allocation, file writes, recursive removal | system temporary work directory | git-status baseline/current/final snapshots, out-of-tree build output, artifact validator script | `scripts/pre-release-check.sh` |
+| 17 | `PROC:release-check` -> filesystem (repository generated paths) | creation via test/build tooling, then baseline-diff `rm -rf` removal | `.venv/`, `__pycache__/`, `.pytest_cache/`, `*.egg-info/` under the repository | execution-generated caches and environments removed on success, failure, or signal; pre-existing content preserved | `scripts/pre-release-check.sh` |

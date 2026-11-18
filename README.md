@@ -143,6 +143,33 @@ GitHub latest release in the `Latest @ GitHub` row.
 ```
 
 
+## Repository Tooling Scripts
+
+| Script | Purpose |
+| --- | --- |
+| `scripts/templateastraluv.sh` | Local-run launcher delegating to `uv run --project <root> python -m githubtemplateastraluv`. |
+| `scripts/build.sh` | Release packager: cleans the generated state, removes stale `dist/*.tar.gz`/`dist/*.whl`, builds `uv run --frozen --with build python -m build`, and verifies the produced sdist and wheel. |
+| `scripts/clean.sh` | Removes every repository-internal execution-generated artifact and restores the canonical startup state. |
+| `scripts/pre-release-check.sh` | Fail-fast release verification (syntax, compileall, pytest, out-of-tree build, artifact validation) with baseline-guarded cleanup. |
+
+`scripts/clean.sh` removes `__pycache__/` and `*.egg-info/` at any depth,
+the `.pytest_cache/`, `.ruff_cache/`, `.mypy_cache/`, `build/`, and
+`.venv/` directories, and the `.coverage`/`.coverage.*` data files. It is
+idempotent (absent targets are a successful no-op), never touches tracked
+files, untracked user files, `$HOME` application data, or the versioned
+release artifacts in `dist/`, and never runs destructive git commands.
+`scripts/build.sh` delegates its pre-build cleanup to `scripts/clean.sh`,
+so two consecutive builds always start from the identical state:
+
+```bash
+# Remove all execution-generated temporary artifacts
+./scripts/clean.sh
+
+# Build from the canonical cleaned state (also via clean.sh)
+./scripts/build.sh
+```
+
+
 ## Acknowledgments
 
 TODO: fill scknowledgments section

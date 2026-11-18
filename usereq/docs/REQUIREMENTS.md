@@ -20,7 +20,7 @@ Project `githubtemplateastraluv`: a Python CLI application published on PyPI (`h
 
 Interface: text-only CLI in English; no GUI functionality is requested. Functional areas: management commands (`--help`, `--ver`, `--version`, `--upgrade`, `--uninstall`, with the `--develop` source modifier of `--upgrade`) independent from core logic; automatic online new-version check against PyPI throttled by an idle-time JSON cache; `--ver` dual-source report covering PyPI and GitHub; colored console notifications. Configurability: version-check parameters (endpoint, timeout, and idle-delays) remain hardcoded constants and stay unexposed (CTN-008); the cache location derives from the `$HOME` environment variable; notification colors are user-configurable through a JSON configuration CLI (`--get`, `--set`, `--unset`, `--print`, `--info`, `--print-raw`) persisting state at `$HOME/.config/githubtemplateastraluv/config.json` (REQ-024). No application project-local configuration layer exists; the repository-root `.g.conf` file belongs to repository tooling and is not application configuration. Performance constraints: HTTPS timeout of 2 seconds; cache gating avoids redundant network calls.
 
-Component model: the CLI entry `src/githubtemplateastraluv/__main__.py` dispatches to management commands and core logic; a dedicated version-check component performs the HTTPS queries (PyPI JSON API for the gated check and the report, GitHub releases API for the report), cache persistence, and notification rendering before argument parsing; `scripts/templateastraluv.sh` wraps local execution.
+Component model: the CLI entry `src/githubtemplateastraluv/__main__.py` dispatches to management commands and core logic; a dedicated version-check component performs the HTTPS queries (PyPI JSON API for the gated check and the report, GitHub releases API for the report), cache persistence, and notification rendering before argument parsing; `scripts/templateastraluv.sh` wraps local execution. Repository tooling: `scripts/build.sh` packages the release into `dist/`, `scripts/clean.sh` removes every repository-internal execution-generated artifact so consecutive builds start from the identical state, and `scripts/pre-release-check.sh` verifies release readiness.
 
 Keyword substitution mapping (skeleton initialization):
 
@@ -60,6 +60,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **PRJ-006**: MUST provide configuration CLI commands `--get`, `--set`, `--unset`, `--print`, `--info`, and `--print-raw`, implemented additively without altering existing commands.
 - **PRJ-007**: MUST provide `scripts/build.sh`, an executable Bash script generating the complete distribution package with the project's native build tooling into `dist/`.
 - **PRJ-008**: MUST provide `scripts/pre-release-check.sh`, an executable Bash script performing the full release-readiness verification and leaving no generated artifacts in the repository.
+- **PRJ-009**: MUST provide `scripts/clean.sh`, an executable Bash script removing every repository-internal execution-generated temporary artifact while preserving tracked content and release artifacts.
 
 ### 2.2 Project Constraints
 - **CTN-001**: MUST initialize the repository by extracting `../skell.tgz` into the working directory, overwriting existing files and preserving empty directories.
@@ -72,7 +73,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **CTN-008**: MUST NOT expose configuration surfaces (CLI options or files) altering endpoint, timeout, or idle-delay values; the cache directory MUST derive from `$HOME`.
 - **CTN-009**: MUST execute `--upgrade` and `--uninstall` side effects only on Linux, delegating to the installed `uv` command-line tool.
 - **CTN-010**: MUST NOT set `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` or `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` in `.github/workflows/release-pypi.yml`.
-- **CTN-011**: MUST NOT execute destructive git commands (`git clean -fdx`, `git reset --hard`) inside `scripts/build.sh` or `scripts/pre-release-check.sh`.
+- **CTN-011**: MUST NOT execute destructive git commands (`git clean -fdx`, `git reset --hard`) inside `scripts/build.sh`, `scripts/clean.sh`, or `scripts/pre-release-check.sh`.
 
 ## 3. Requirements
 
@@ -97,6 +98,9 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 ├── pyproject.toml
 ├── uv.lock
 ├── scripts/
+│   ├── build.sh
+│   ├── clean.sh
+│   ├── pre-release-check.sh
 │   └── templateastraluv.sh
 ├── src/
 │   ├── githubtemplateastraluv/
@@ -151,6 +155,15 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **DES-041**: MUST pin the `runs-on` label of every job in `.github/workflows/release-pypi.yml` to the explicit label `ubuntu-24.04` and MUST NOT use the `ubuntu-latest` label.
 - **DES-042**: MUST source every release-workflow artifact exclusively from the `dist/` files committed in the tagged release commit, obtained by checking out that commit.
 - **DES-043**: MUST NOT execute `scripts/build.sh`, `scripts/pre-release-check.sh`, or any build or build-preparatory step in the release workflow.
+- **DES-044**: MUST implement `scripts/clean.sh` in Bash, resolving the repository root independently of the invocation directory and handling paths containing spaces.
+- **DES-045**: MUST validate the required clean tooling (`git`) before removing and terminate non-zero naming any missing tool.
+- **DES-046**: MUST remove every `__pycache__/` and `*.egg-info/` directory at any depth under the repository root.
+- **DES-047**: MUST remove the `.pytest_cache/`, `.ruff_cache/`, `.mypy_cache/`, `build/`, and `.venv/` directories whenever present under the repository root.
+- **DES-048**: MUST remove the coverage data files `.coverage` and `.coverage.*` whenever present under the repository root.
+- **DES-049**: MUST treat every absent cleanup target as a successful no-op, terminate non-zero on any removal failure, and log each handled target with a final summary.
+- **DES-050**: MUST restrict `scripts/clean.sh` removals to the enumerated generated paths and MUST NOT delete tracked files, untracked user files, `dist/` release artifacts, or `$HOME` application data.
+- **DES-051**: MUST execute `scripts/clean.sh` from `scripts/build.sh` after toolchain validation and before every build action, terminating non-zero when the cleanup fails.
+- **DES-052**: MUST guarantee that two consecutive `scripts/build.sh` executions perform the build from the identical generated-path startup state.
 
 ### 3.2 Functions
 - **REQ-001**: MUST print the verbatim English help screen (template below) when invoked with `--help` or with no arguments.
@@ -227,9 +240,11 @@ Commands:
 - **TST-013**: MUST verify REQ-027 through REQ-031 with mocked PyPI and GitHub payloads: exact aligned rows, `unknown (<reason>)` rows plus red notes on failures, and cache deltas driven only by the PyPI outcome.
 - **TST-014**: MUST verify REQ-032, REQ-033, REQ-034, REQ-036, and REQ-038 by asserting the exact develop argv variants on Linux, the warning and matching manual command on non-Linux, and no upgrade dispatch for `--develop` or `--force` alone.
 - **TST-015**: MUST verify DES-016, DES-017, and DES-018 by parsing `.github/workflows/release-pypi.yml` and asserting the OIDC publish job with `id-token: write` runs only for `master` tags while the release job runs for every tag.
-- **TST-016**: MUST verify DES-021, DES-022, DES-023, DES-024, and DES-025 by executing `./scripts/build.sh` twice; pass iff both runs exit 0, `dist/` holds exactly one sdist and one wheel, and stale artifacts do not accumulate.
+- **TST-016**: MUST verify DES-021, DES-022, DES-023, DES-024, DES-025, and DES-052 by executing `./scripts/build.sh` twice; pass iff both runs exit 0, both start from the identical cleaned startup state, `dist/` holds exactly one sdist and one wheel, and stale artifacts do not accumulate.
 - **TST-017**: MUST verify DES-026 through DES-038 by executing `./scripts/pre-release-check.sh`; pass iff exit code is 0 and `git status --porcelain --ignored` equals the pre-execution baseline.
 - **TST-018**: MUST verify DES-027, DES-034, and DES-035 in an isolated repository copy with an injected failing tool; pass iff exit code is non-zero, the diagnostic names the failed phase, and no generated artifacts remain.
 - **TST-019**: MUST verify DES-039 and DES-040 with `git check-ignore -v --no-index`; pass iff `dist/` and every artifact under it resolve as not ignored via the `!dist/` and `!dist/**/*` re-inclusion rules.
 - **TST-020**: MUST verify DES-041 by parsing `.github/workflows/release-pypi.yml` and asserting every `runs-on` value equals `ubuntu-24.04` and no `ubuntu-latest` label remains.
 - **TST-021**: MUST verify DES-042 and DES-043 by parsing `.github/workflows/release-pypi.yml`; pass iff the release and publish jobs check out the tag and consume the committed `dist/` artifacts, and no build, `scripts/build.sh`, `scripts/pre-release-check.sh`, or build-preparatory step executes.
+- **TST-022**: MUST verify DES-044 through DES-050 by executing `scripts/clean.sh` twice in a sandbox repository seeded with generated paths, a tracked file, an untracked user file, and `dist/` content; pass iff the first run removes every generated path, the preserved content survives both runs, and the second run exits 0 as a removal-free no-op.
+- **TST-023**: MUST verify DES-051 and CTN-011 by parsing `scripts/build.sh`, `scripts/clean.sh`, and `scripts/pre-release-check.sh`; pass iff the pre-build cleanup delegates to `scripts/clean.sh` before the `dist/` stale-artifact removal and no destructive git command appears in any of the three scripts.
