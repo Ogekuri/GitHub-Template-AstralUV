@@ -10,7 +10,7 @@ paths only; no line numbers. Process IDs are stable.
 | `PROC:launcher` | process | none (user shell) | Local-run wrapper resolving the project root and delegating to the uv runtime | `scripts/templateastraluv.sh` (bash top-level execution) | `scripts/templateastraluv.sh` |
 | `PROC:uv-runtime` | process | `PROC:launcher` | Transient uv process that resolves/creates the project virtual environment and launches the CLI | uv CLI argv: `run --project <BASE_DIR> python -m githubtemplateastraluv` | `scripts/templateastraluv.sh` |
 | `PROC:main` | process | `PROC:uv-runtime` (via launcher) or user interpreter | CLI application process: gated version check plus management-command and configuration-CLI dispatch | `githubtemplateastraluv.__main__:main`; module guard `python -m githubtemplateastraluv` | `src/githubtemplateastraluv/__main__.py`, `src/githubtemplateastraluv/core.py`, `src/githubtemplateastraluv/config.py`, `src/githubtemplateastraluv/config_render.py` |
-| `PROC:uv-tool-manage` | process | `PROC:main` | Transient child process executing `uv tool install` / `uv tool uninstall` (Linux only) | uv CLI argv from `UPGRADE_COMMAND` / `UNINSTALL_COMMAND` | `src/githubtemplateastraluv/management.py` |
+| `PROC:uv-tool-manage` | process | `PROC:main` | Transient child process executing `uv tool install` (standard or `--force` variant) / `uv tool uninstall` (Linux only) | uv CLI argv from `UPGRADE_COMMAND` / `UPGRADE_FORCE_COMMAND` / `UPGRADE_DEVELOP_COMMAND` / `UPGRADE_DEVELOP_FORCE_COMMAND` / `UNINSTALL_COMMAND` | `src/githubtemplateastraluv/management.py` |
 | `PROC:build-tooling` | process | none (user shell) | Release-packaging wrapper validating the toolchain, pruning stale generated artifacts, and delegating the build | `scripts/build.sh` (bash top-level execution) | `scripts/build.sh` |
 | `PROC:uv-build-runtime` | process | `PROC:build-tooling` | Transient uv process that syncs the locked environment and runs the PEP 517 build backend to produce sdist and wheel into `dist/` | uv CLI argv: `run --frozen --with build python -m build` | `scripts/build.sh` |
 | `PROC:release-check` | process | none (user shell) | Release-readiness verifier running fail-fast checks (shell syntax, bytecode compilation, pytest suite, out-of-tree build, artifact validation) with baseline-guarded cleanup and integrity verification | `scripts/pre-release-check.sh` (bash top-level execution) | `scripts/pre-release-check.sh` |
@@ -58,8 +58,9 @@ no explicit threads detected.
 - Lifecycle/trigger: starts on CLI invocation; optionally runs the gated
   online version check before dispatch (dual-source version report
   variant for `--ver` / `--version`), prints help, prints the aligned
-  three-row version report, executes install/uninstall
-  management commands, executes the configuration CLI commands
+  three-row version report, executes install/uninstall management
+  commands with the `--develop` and `--force` upgrade modifiers,
+  executes the configuration CLI commands
   (`--get`, `--set`, `--unset`, `--print-raw`, `--print`, `--info`),
   and terminates through `sys.exit` with the dispatcher return code.
 - Internal Call-Trace Tree (internal functions only, call order):
@@ -121,6 +122,9 @@ no explicit threads detected.
         [`src/githubtemplateastraluv/version_check.py`]
       - `version_check._print_colored(...)`: bright red note naming the
         failed source [`src/githubtemplateastraluv/version_check.py`]
+      - `version_check._unknown_value(...)`: `unknown (<reason>)`
+        placeholder carrying the encountered error for a failed report
+        source [`src/githubtemplateastraluv/version_check.py`]
       - `version_check._format_report_row(...)`: label-padded report row
         with aligned version columns
         [`src/githubtemplateastraluv/version_check.py`]
@@ -135,10 +139,13 @@ no explicit threads detected.
         [`src/githubtemplateastraluv/management.py`]
         - `management._management_entry(...)`: render one aligned command
           line [`src/githubtemplateastraluv/management.py`]
-    - `management.cmd_upgrade(...)`: Linux-only `uv tool install` from
-      PyPI, or from GitHub for the `--develop` variant, with
-      manual-command fallback
+    - `management.cmd_upgrade(...)`: Linux-only `uv tool install` in the
+      standard or `--force` variant, from PyPI or from GitHub for the
+      `--develop` variant, with manual-command fallback
       [`src/githubtemplateastraluv/management.py`]
+      - `management._upgrade_command(...)`: exact argv selection for the
+        requested source/force variant
+        [`src/githubtemplateastraluv/management.py`]
       - `management.is_linux(...)`: platform check
         [`src/githubtemplateastraluv/management.py`]
     - `management.cmd_uninstall(...)`: Linux-only `uv tool uninstall`
@@ -261,10 +268,15 @@ no explicit threads detected.
 
 ### PROC:uv-tool-manage
 
-- Entrypoint(s): `uv tool install githubtemplateastraluv --force` (PyPI
-  source), `uv tool install githubtemplateastraluv --force --from
+- Entrypoint(s): `uv tool install githubtemplateastraluv` (PyPI
+  source), `uv tool install githubtemplateastraluv --force --reinstall
+  --refresh` (forced PyPI source), `uv tool install
+  githubtemplateastraluv --from
   git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` (develop
-  variant), or `uv tool uninstall githubtemplateastraluv`.
+  variant), `uv tool install githubtemplateastraluv --force --reinstall
+  --refresh --from
+  git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` (forced
+  develop variant), or `uv tool uninstall githubtemplateastraluv`.
 - Lifecycle/trigger: spawned by `PROC:main` only when `is_linux()` is
   true and the user passed `--upgrade` or `--uninstall`; runs to
   completion; its return code propagates to `PROC:main` as the CLI exit
@@ -354,7 +366,7 @@ no explicit threads detected.
 | --- | --- | --- | --- | --- | --- |
 | 1 | `PROC:launcher` -> `PROC:uv-runtime` | process `exec` replacement, stdio inherited | uv CLI (`run --project`) | argv: base directory, `python -m githubtemplateastraluv`, user arguments | `scripts/templateastraluv.sh` |
 | 2 | `PROC:uv-runtime` -> `PROC:main` | child-process spawn, stdio inherited | `python -m githubtemplateastraluv` execution | argv passthrough; CLI exit status returned to uv | `scripts/templateastraluv.sh`, `src/githubtemplateastraluv/__main__.py` |
-| 3 | `PROC:main` -> `PROC:uv-tool-manage` | `subprocess.run` spawn, stdio inherited | uv CLI `tool install` / `tool uninstall` | `UPGRADE_COMMAND` / `UPGRADE_DEVELOP_COMMAND` / `UNINSTALL_COMMAND` argv; `returncode` propagated | `src/githubtemplateastraluv/management.py` |
+| 3 | `PROC:main` -> `PROC:uv-tool-manage` | `subprocess.run` spawn, stdio inherited | uv CLI `tool install` / `tool uninstall` | `UPGRADE_COMMAND` / `UPGRADE_FORCE_COMMAND` / `UPGRADE_DEVELOP_COMMAND` / `UPGRADE_DEVELOP_FORCE_COMMAND` / `UNINSTALL_COMMAND` argv; `returncode` propagated | `src/githubtemplateastraluv/management.py` |
 | 4 | `PROC:main` -> PyPI (network) | HTTPS GET via `urllib.request.urlopen`, 2 s timeout | `https://pypi.org/pypi/githubtemplateastraluv/json` | JSON object with `info.version` latest published version | `src/githubtemplateastraluv/version_check.py` |
 | 5 | `PROC:main` -> GitHub API (network) | HTTPS GET via `urllib.request.urlopen`, 2 s timeout | `https://api.github.com/repos/Ogekuri/GitHub-Template-AstralUV/releases/latest` | JSON object with `tag_name` release tag | `src/githubtemplateastraluv/version_check.py` |
 | 6 | `PROC:main` -> filesystem (cache) | JSON file read/write with parent-directory creation | `$HOME/.cache/githubtemplateastraluv/check_version_idle-time.json` | four-field JSON: `last_check_epoch`, `last_check_human`, `idle_time_epoch`, `idle_time_human` | `src/githubtemplateastraluv/version_check.py` |

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 ## @file test_githubtemplateastraluv.py
 # @brief HDT unit suite (Generator mode) covering TST-001..TST-007,
-#        TST-012..TST-015 for the githubtemplateastraluv CLI and its
-#        release workflow.
+#        TST-012..TST-015, TST-021 for the githubtemplateastraluv CLI and
+#        its release workflow.
 # @details HDT static-analysis artifact (section 7.1):
 #          - UUTs and levels: L0 = management.is_linux,
 #            management._management_entry, version_check._parse_version,
@@ -67,6 +67,12 @@ EXPECTED_HELP_TEXT = (
     "  --version   - Print the githubtemplateastraluv version.\n"
     "  --help      - Print the full help screen or the help text of a"
     " specific command.\n"
+    "\n"
+    "Options:\n"
+    "  --develop   - With --upgrade: install from the GitHub development"
+    " source.\n"
+    "  --force     - With --upgrade: force full re-download and"
+    " reinstallation.\n"
     "\n"
     "Commands:\n"
     "  ..."
@@ -257,6 +263,50 @@ def test_upgrade_develop_on_linux_executes_exact_uv_install(isolated_home):
     )
 
 
+def test_upgrade_force_on_linux_executes_exact_uv_install(isolated_home):
+    """@brief TST-003 (REQ-035): `--upgrade --force` spawns exact argv.
+
+    @details expected_output = exit code 0 and one subprocess.run call with
+            UPGRADE_FORCE_COMMAND; expected_exception = none.
+    """
+    with mock.patch.object(version_check, "run_version_check"):
+        with mock.patch.object(management, "is_linux", return_value=True):
+            with mock.patch.object(
+                management.subprocess,
+                "run",
+                return_value=mock.Mock(returncode=0),
+            ) as run_mock:
+                exit_code = core.main(["--upgrade", "--force"])
+    assert exit_code == 0
+    run_mock.assert_called_once_with(
+        management.UPGRADE_FORCE_COMMAND, check=False
+    )
+
+
+def test_upgrade_develop_force_on_linux_executes_exact_uv_install(
+    isolated_home,
+):
+    """@brief TST-003/TST-014 (REQ-036): forced develop argv executes.
+
+    @details expected_output = exit code 0 and one subprocess.run call with
+            UPGRADE_DEVELOP_FORCE_COMMAND; expected_exception = none.
+    """
+    with mock.patch.object(version_check, "run_version_check"):
+        with mock.patch.object(management, "is_linux", return_value=True):
+            with mock.patch.object(
+                management.subprocess,
+                "run",
+                return_value=mock.Mock(returncode=0),
+            ) as run_mock:
+                exit_code = core.main(
+                    ["--upgrade", "--develop", "--force"]
+                )
+    assert exit_code == 0
+    run_mock.assert_called_once_with(
+        management.UPGRADE_DEVELOP_FORCE_COMMAND, check=False
+    )
+
+
 def test_uninstall_on_linux_executes_exact_uv_uninstall(isolated_home):
     """@brief TST-003: `--uninstall` spawns the exact REQ-005 argv on Linux.
 
@@ -319,6 +369,50 @@ def test_upgrade_develop_on_non_linux_prints_manual_without_execution(
     run_mock.assert_not_called()
 
 
+def test_upgrade_force_on_non_linux_prints_manual_without_execution(
+    isolated_home, capsys
+):
+    """@brief TST-004 (REQ-004/REQ-035): non-Linux forced upgrade manual.
+
+    @details expected_output = warning plus the REQ-035 manual command on
+            stdout and zero subprocess spawns; expected_exception = none.
+    """
+    with mock.patch.object(version_check, "run_version_check"):
+        with mock.patch.object(management, "is_linux", return_value=False):
+            with mock.patch.object(
+                management.subprocess, "run"
+            ) as run_mock:
+                exit_code = core.main(["--upgrade", "--force"])
+    out = capsys.readouterr().out
+    assert exit_code == 0
+    assert "WARNING" in out
+    assert " ".join(management.UPGRADE_FORCE_COMMAND) in out
+    run_mock.assert_not_called()
+
+
+def test_upgrade_develop_force_on_non_linux_prints_manual_without_execution(
+    isolated_home, capsys
+):
+    """@brief TST-004/TST-014 (REQ-033/REQ-036): forced develop manual.
+
+    @details expected_output = warning plus the REQ-036 manual command on
+            stdout and zero subprocess spawns; expected_exception = none.
+    """
+    with mock.patch.object(version_check, "run_version_check"):
+        with mock.patch.object(management, "is_linux", return_value=False):
+            with mock.patch.object(
+                management.subprocess, "run"
+            ) as run_mock:
+                exit_code = core.main(
+                    ["--upgrade", "--develop", "--force"]
+                )
+    out = capsys.readouterr().out
+    assert exit_code == 0
+    assert "WARNING" in out
+    assert " ".join(management.UPGRADE_DEVELOP_FORCE_COMMAND) in out
+    run_mock.assert_not_called()
+
+
 def test_develop_alone_falls_back_to_help_without_upgrade(
     isolated_home, capsys
 ):
@@ -333,6 +427,25 @@ def test_develop_alone_falls_back_to_help_without_upgrade(
                 management.subprocess, "run"
             ) as run_mock:
                 exit_code = core.main(["--develop"])
+    assert exit_code == 0
+    assert capsys.readouterr().out == EXPECTED_HELP_TEXT + "\n"
+    run_mock.assert_not_called()
+
+
+def test_force_alone_falls_back_to_help_without_upgrade(
+    isolated_home, capsys
+):
+    """@brief TST-014 (REQ-038): `--force` alone dispatches no upgrade.
+
+    @details expected_output = exact help screen and zero subprocess
+            spawns; expected_exception = none.
+    """
+    with mock.patch.object(version_check, "run_version_check"):
+        with mock.patch.object(management, "is_linux", return_value=True):
+            with mock.patch.object(
+                management.subprocess, "run"
+            ) as run_mock:
+                exit_code = core.main(["--force"])
     assert exit_code == 0
     assert capsys.readouterr().out == EXPECTED_HELP_TEXT + "\n"
     run_mock.assert_not_called()
@@ -517,14 +630,15 @@ def test_timeout_failure_prints_red_and_backs_off_86400(
     _assert_cache_fields(isolated_home, 86400)
 
 
-def test_ver_report_marks_failed_pypi_source_unavailable(
+def test_ver_report_marks_failed_pypi_source_unknown(
     isolated_home, capsys
 ):
-    """@brief TST-013 (REQ-030/REQ-031): failed PyPI -> unavailable row.
+    """@brief TST-013 (REQ-030/REQ-031): failed PyPI -> unknown row.
 
-    @details expected_output = `unavailable` in the PyPI row, populated
-            GitHub row, bright red note naming PyPI; cache backs off
-            86400 s (PyPI outcome only); expected_exception = none
+    @details expected_output = `unknown (HTTP Error 503: Service
+            Unavailable)` in the PyPI row (REQ-030 reason rendering),
+            populated GitHub row, bright red note naming PyPI; cache backs
+            off 86400 s (PyPI outcome only); expected_exception = none
             (handled internally).
     """
 
@@ -551,22 +665,23 @@ def test_ver_report_marks_failed_pypi_source_unavailable(
         exit_code = core.main(["--ver"])
     out = capsys.readouterr().out
     assert exit_code == 0
-    assert "Latest @ PyPI     : unavailable\n" in out
+    assert "Latest @ PyPI     : unknown (HTTP Error 503: Service"
+    " Unavailable)\n" in out
     assert "Latest @ GitHub   : 8.8.8\n" in out
     assert "\033[91m" in out
     assert "@ PyPI" in out
     _assert_cache_fields(isolated_home, 86400)
 
 
-def test_ver_report_marks_failed_github_source_unavailable(
+def test_ver_report_marks_failed_github_source_unknown(
     isolated_home, capsys
 ):
-    """@brief TST-013 (REQ-030/REQ-031): failed GitHub -> unavailable row.
+    """@brief TST-013 (REQ-030/REQ-031): failed GitHub -> unknown row.
 
-    @details expected_output = populated PyPI row, `unavailable` in the
-            GitHub row, bright red note naming GitHub; cache refreshed
-            3600 s (PyPI outcome only); expected_exception = none
-            (handled internally).
+    @details expected_output = populated PyPI row, `unknown (timed out)`
+            in the GitHub row (REQ-030 reason rendering), bright red note
+            naming GitHub; cache refreshed 3600 s (PyPI outcome only);
+            expected_exception = none (handled internally).
     """
 
     def _respond(request, timeout):
@@ -587,7 +702,7 @@ def test_ver_report_marks_failed_github_source_unavailable(
     out = capsys.readouterr().out
     assert exit_code == 0
     assert "Latest @ PyPI     : 9.9.9\n" in out
-    assert "Latest @ GitHub   : unavailable\n" in out
+    assert "Latest @ GitHub   : unknown (timed out)\n" in out
     assert "\033[91m" in out
     assert "@ GitHub" in out
     _assert_cache_fields(isolated_home, 3600)
@@ -605,15 +720,11 @@ RELEASE_WORKFLOW_PATH = (
 
 ## @brief Minimum major version per workflow action whose runtime is
 #         Node24 or later (DES-015).
-# @details `astral-sh/setup-uv` is a composite action and
-#          `pypa/gh-action-pypi-publish` is a Docker action; neither
-#          declares a JavaScript runtime, and their entries keep the
-#          manifest exhaustive over every `uses:` pin of the release
-#          workflow.
+# @details `pypa/gh-action-pypi-publish` is a Docker action and declares
+#          no JavaScript runtime; its entry keeps the manifest exhaustive
+#          over every `uses:` pin of the release workflow.
 NODE24_ACTION_MIN_MAJOR = {
     "actions/checkout": 5,
-    "actions/setup-python": 7,
-    "astral-sh/setup-uv": 3,
     "actions/attest-build-provenance": 4,
     "mikepenz/release-changelog-builder-action": 6,
     "softprops/action-gh-release": 3,
@@ -670,19 +781,18 @@ def test_release_workflow_declares_node24_release_stack():
     """@brief TST-012 boundary: golden pin oracle for the migrated stack.
 
     @details expected_output = none; expected_exception = AssertionError
-            when the declaration-order pin list differs from the migrated
-            Node24 stack (two checkout pins, setup-python, setup-uv,
+            when the declaration-order pin list differs from the
+            build-free Node24 stack (three checkout pins,
             attest-build-provenance, changelog builder, gh-release, PyPI
             publisher).
     """
     assert _release_workflow_pins() == [
         "actions/checkout@v5",
         "actions/checkout@v5",
-        "actions/setup-python@v7",
-        "astral-sh/setup-uv@v3",
         "actions/attest-build-provenance@v4",
         "mikepenz/release-changelog-builder-action@v6",
         "softprops/action-gh-release@v3",
+        "actions/checkout@v5",
         "pypa/gh-action-pypi-publish@release/v1",
     ]
 
@@ -737,23 +847,61 @@ def test_release_workflow_publish_job_is_oidc_master_only():
 
     @details expected_output = none; expected_exception = AssertionError
             when the publish job lacks the master gate, the id-token
-            permission, or the PyPI trusted-publishing action pin.
+            permission, the tag checkout, or the PyPI trusted-publishing
+            action pin.
     """
     block = _workflow_job_block("publish-pypi")
-    assert "needs: [check-branch, build-release]" in block
+    assert "needs: [check-branch, release]" in block
     assert "needs.check-branch.outputs.is_master == 'true'" in block
     assert "id-token: write" in block
+    assert "actions/checkout" in block
     assert "pypa/gh-action-pypi-publish@release/v1" in block
 
 
-def test_release_workflow_build_release_runs_for_every_tag():
-    """@brief TST-015 (DES-018): build/release run for every canonical tag.
+def test_release_workflow_release_job_runs_for_every_tag():
+    """@brief TST-015 (DES-018): release job runs for every canonical tag.
 
     @details expected_output = none; expected_exception = AssertionError
-            when the build-release job carries a branch gate or misses the
-            GitHub release step.
+            when the release job carries a branch gate, misses the tag
+            checkout or the GitHub release step, or still builds.
     """
-    block = _workflow_job_block("build-release")
+    block = _workflow_job_block("release")
     assert "is_master" not in block
     assert not re.search(r"^\s+if:", block, flags=re.MULTILINE)
+    assert "actions/checkout" in block
     assert "softprops/action-gh-release" in block
+    assert "python -m build" not in block
+
+
+def test_release_workflow_publishes_committed_dist_artifacts():
+    """@brief TST-021 (DES-042): release assets come from committed dist/.
+
+    @details expected_output = none; expected_exception = AssertionError
+            when the release job does not upload the committed `dist/`
+            files (with fail-on-unmatched enforcement) or the publish job
+            does not check out the tagged commit before publishing.
+    """
+    release_block = _workflow_job_block("release")
+    publish_block = _workflow_job_block("publish-pypi")
+    assert "subject-path: dist/*" in release_block
+    assert "files: dist/**/*" in release_block
+    assert "fail_on_unmatched_files: true" in release_block
+    assert "actions/checkout" in publish_block
+
+
+def test_release_workflow_runs_no_build_or_release_checks():
+    """@brief TST-021 (DES-043): no build or build-preparatory step runs.
+
+    @details expected_output = none; expected_exception = AssertionError
+            when the workflow references `scripts/build.sh`,
+            `scripts/pre-release-check.sh`, any package build command, or
+            any build-preparatory toolchain setup step.
+    """
+    workflow_text = RELEASE_WORKFLOW_PATH.read_text(encoding="utf-8")
+    assert "scripts/build.sh" not in workflow_text
+    assert "pre-release-check.sh" not in workflow_text
+    assert "python -m build" not in workflow_text
+    assert "Set up Python" not in workflow_text
+    assert "Set up uv" not in workflow_text
+    assert "setup-python" not in workflow_text
+    assert "setup-uv" not in workflow_text

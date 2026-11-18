@@ -11,30 +11,67 @@ import sys
 ## @brief Canonical program name used across help text and uv commands.
 PROGRAM_NAME = "githubtemplateastraluv"
 
-## @brief Exact `uv tool install` argv executed on Linux by `--upgrade`.
+## @brief Exact `uv tool install` argv executed on Linux by
+#        `--upgrade` without `--force` (REQ-003).
 # @details `' '.join(UPGRADE_COMMAND)` equals the literal string mandated
 #          by REQ-003 and is printed verbatim as the manual command on
-#          non-Linux platforms (REQ-004). Source resolves from PyPI.
+#          non-Linux platforms (REQ-004). Source resolves from PyPI; the
+#          standard process applies no forcing option (REQ-037).
 UPGRADE_COMMAND = [
     "uv",
     "tool",
     "install",
     "githubtemplateastraluv",
-    "--force",
 ]
 
 ## @brief Exact `uv tool install` argv executed on Linux by
-#        `--upgrade --develop` (REQ-032).
-# @details `' '.join(UPGRADE_DEVELOP_COMMAND)` equals the literal string
-#          mandated by REQ-032 and is printed verbatim as the manual
-#          command on non-Linux platforms (REQ-033). Source resolves from
-#          the GitHub repository (latest tagged release, any branch).
-UPGRADE_DEVELOP_COMMAND = [
+#        `--upgrade --force` (REQ-035).
+# @details `' '.join(UPGRADE_FORCE_COMMAND)` equals the literal string
+#          mandated by REQ-035 and is printed verbatim as the manual
+#          command on non-Linux platforms (REQ-004). The forcing options
+#          force the full re-download and complete reinstallation of the
+#          package from PyPI (REQ-037).
+UPGRADE_FORCE_COMMAND = [
     "uv",
     "tool",
     "install",
     "githubtemplateastraluv",
     "--force",
+    "--reinstall",
+    "--refresh",
+]
+
+## @brief Exact `uv tool install` argv executed on Linux by
+#        `--upgrade --develop` without `--force` (REQ-032).
+# @details `' '.join(UPGRADE_DEVELOP_COMMAND)` equals the literal string
+#          mandated by REQ-032 and is printed verbatim as the manual
+#          command on non-Linux platforms (REQ-033). Source resolves from
+#          the GitHub repository (latest tagged release, any branch); the
+#          standard process applies no forcing option (REQ-037).
+UPGRADE_DEVELOP_COMMAND = [
+    "uv",
+    "tool",
+    "install",
+    "githubtemplateastraluv",
+    "--from",
+    "git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git",
+]
+
+## @brief Exact `uv tool install` argv executed on Linux by
+#        `--upgrade --develop --force` (REQ-036).
+# @details `' '.join(UPGRADE_DEVELOP_FORCE_COMMAND)` equals the literal
+#          string mandated by REQ-036 and is printed verbatim as the
+#          manual command on non-Linux platforms (REQ-033). The forcing
+#          options force the full re-download and complete reinstallation
+#          from the GitHub repository source (REQ-037).
+UPGRADE_DEVELOP_FORCE_COMMAND = [
+    "uv",
+    "tool",
+    "install",
+    "githubtemplateastraluv",
+    "--force",
+    "--reinstall",
+    "--refresh",
     "--from",
     "git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git",
 ]
@@ -72,12 +109,35 @@ def _management_entry(flag: str, description: str) -> str:
     return f"  {flag:<{_FLAG_COLUMN_WIDTH}} - {description}"
 
 
+def _upgrade_command(develop: bool, force: bool) -> list[str]:
+    """@brief Select the exact `uv tool install` argv for the variant.
+
+    @details Mapping mandated by the SRS: `(False, False)` ->
+             UPGRADE_COMMAND (REQ-003), `(False, True)` ->
+             UPGRADE_FORCE_COMMAND (REQ-035), `(True, False)` ->
+             UPGRADE_DEVELOP_COMMAND (REQ-032), `(True, True)` ->
+             UPGRADE_DEVELOP_FORCE_COMMAND (REQ-036). Forcing options are
+             applied only when `force` is True (REQ-037).
+    @param develop {bool} True selects the GitHub development source.
+    @param force {bool} True selects the forced reinstallation variant.
+    @return {list[str]} Exact argv of the requested upgrade variant.
+    @satisfies REQ-003 REQ-032 REQ-035 REQ-036 REQ-037
+    """
+    if develop:
+        return (
+            UPGRADE_DEVELOP_FORCE_COMMAND if force
+            else UPGRADE_DEVELOP_COMMAND
+        )
+    return UPGRADE_FORCE_COMMAND if force else UPGRADE_COMMAND
+
+
 def build_help_text(version: str) -> str:
     """@brief Render the full help screen text (REQ-001 template).
 
     @details The literal `(x.y.z)` slot of the template receives the
-             installed version (A-01); the `Commands:` section ends with
-             the literal `...` line (A-02).
+             installed version (A-01); the `Options:` section documents
+             the `--develop` and `--force` modifiers of `--upgrade`; the
+             `Commands:` section ends with the literal `...` line (A-02).
     @param version {str} Installed version in `x.y.z` format.
     @return {str} Help text without trailing newline; the caller prints it.
     @satisfies REQ-001 A-01 A-02
@@ -101,10 +161,22 @@ def build_help_text(version: str) -> str:
             "command.",
         ),
     ]
+    option_entries = [
+        _management_entry(
+            "--develop",
+            "With --upgrade: install from the GitHub development source.",
+        ),
+        _management_entry(
+            "--force",
+            "With --upgrade: force full re-download and reinstallation.",
+        ),
+    ]
     header = f"Usage: {PROGRAM_NAME} [command] [options] ({version})"
     lines = (
         [header, "", "Management Commands:"]
         + entries
+        + ["", "Options:"]
+        + option_entries
         + ["", "Commands:", "  ..."]
     )
     return "\n".join(lines)
@@ -121,23 +193,33 @@ def print_help(version: str) -> int:
     return 0
 
 
-def cmd_upgrade(develop: bool = False) -> int:
+def cmd_upgrade(develop: bool = False, force: bool = False) -> int:
     """@brief Reinstall the tool via `uv tool install` on Linux.
 
-    @details On Linux the exact argv selected by `develop` executes through
-             subprocess and its exit code propagates: UPGRADE_COMMAND for
-             the PyPI source (REQ-003), UPGRADE_DEVELOP_COMMAND for the
-             GitHub development source (REQ-032). On any other OS no
-             process spawns; a warning plus the matching manual command
-             print instead (REQ-004, REQ-033).
+    @details On Linux the exact argv selected by `develop` and `force`
+             executes through subprocess and its exit code propagates:
+             UPGRADE_COMMAND for the standard PyPI process (REQ-003),
+             UPGRADE_FORCE_COMMAND for the forced PyPI reinstallation
+             (REQ-035), UPGRADE_DEVELOP_COMMAND for the standard GitHub
+             development source (REQ-032), and
+             UPGRADE_DEVELOP_FORCE_COMMAND for the forced development
+             reinstallation (REQ-036); forcing options apply only when
+             `force` is True (REQ-037). On any other OS no process spawns;
+             a warning plus the matching manual command print instead
+             (REQ-004, REQ-033).
     @param develop {bool} True selects the GitHub development source
            (`--upgrade --develop`); False selects the PyPI source
            (default).
+    @param force {bool} True selects the forced full re-download and
+           reinstallation variant (`--upgrade --force`, REQ-037);
+           False executes the standard process without any forcing
+           option.
     @return {int} 0 on manual fallback or successful subprocess;
             otherwise the `uv` process exit code.
-    @satisfies REQ-003 REQ-004 REQ-032 REQ-033 CTN-009
+    @satisfies REQ-003 REQ-004 REQ-032 REQ-033 REQ-035 REQ-036 REQ-037
+               CTN-009
     """
-    command = UPGRADE_DEVELOP_COMMAND if develop else UPGRADE_COMMAND
+    command = _upgrade_command(develop, force)
     if not is_linux():
         print("WARNING: --upgrade executes automatically on Linux only.")
         print(f"Run manually: {' '.join(command)}")

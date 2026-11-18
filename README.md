@@ -33,7 +33,7 @@ GitHub tag via <code>--develop</code>), and a dual-source version report.
 - Published on PyPI: install with `uv tool install githubtemplateastraluv`.
 - Automatic online new-version check (PyPI) throttled by an idle-time cache.
 - `--ver` dual-source report: installed, latest PyPI, and latest GitHub versions, with aligned columns.
-- Self-upgrade from PyPI; `--upgrade --develop` pulls the latest GitHub tagged release.
+- Self-upgrade from PyPI; `--upgrade --develop` pulls the latest GitHub tagged release; `--upgrade --force` forces full re-download and reinstallation.
 - Colored console notifications with user-configurable colors.
 - Release automation: GitHub release for every version tag; OIDC Trusted Publishing to PyPI for `master` tags only.
 
@@ -67,8 +67,14 @@ Latest @ GitHub   : X3.Y3.Z3
 # Upgrade from PyPI (Linux; prints the manual command elsewhere)
 githubtemplateastraluv --upgrade
 
+# Force full re-download and reinstallation from PyPI
+githubtemplateastraluv --upgrade --force
+
 # Upgrade to the latest GitHub tagged release (any branch)
 githubtemplateastraluv --upgrade --develop
+
+# Force full re-download and reinstallation from GitHub
+githubtemplateastraluv --upgrade --develop --force
 
 # Uninstall (Linux; prints the manual command elsewhere)
 githubtemplateastraluv --uninstall
@@ -122,6 +128,12 @@ uv tool install githubtemplateastraluv --force --from git+https://github.com/Oge
 #### Upgrade to the latest GitHub tagged release (any branch)
 ```bash
 githubtemplateastraluv --upgrade --develop
+```
+
+#### Force full re-download and reinstallation
+```bash
+githubtemplateastraluv --upgrade --force
+githubtemplateastraluv --upgrade --develop --force
 ```
 
 `--upgrade --develop` always downloads the most recent tagged build

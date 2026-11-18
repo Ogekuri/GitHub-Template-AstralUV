@@ -10,11 +10,14 @@
 # *          distribution artifacts from `dist/` while preserving every other
 # *          pre-existing file, runs the project-native build procedure
 # *          `uv run --frozen --with build python -m build` from the
-# *          repository root (the exact build step of
-# *          `.github/workflows/release-pypi.yml`), verifies that at least
-# *          one sdist and one wheel were produced, and prints an artifact
-# *          summary. Generated release artifacts are intentionally kept in
-# *          `dist/`; no temporary build output is left anywhere else.
+# *          repository root, verifies that at least one sdist and one
+# *          wheel were produced, and prints an artifact summary. The
+# *          produced sdist and wheel are committed to the repository
+# *          under `dist/` and are the sole artifact source of
+# *          `.github/workflows/release-pypi.yml` (DES-042), which never
+# *          executes this script (DES-043). Generated release artifacts
+# *          are intentionally kept in `dist/`; no temporary build output
+# *          is left anywhere else.
 # * @pre The script executes inside the git repository (any working directory).
 # * @post On success `dist/` holds the fresh sdist and wheel and all stale
 # *       generated artifacts are gone; on failure the exit status is non-zero.

@@ -58,8 +58,8 @@ _REPORT_LABEL_GITHUB = "Latest @ GitHub"
 # @details Equals the length of the longest label `_REPORT_LABEL_INSTALLED`.
 _REPORT_LABEL_WIDTH = len(_REPORT_LABEL_INSTALLED)
 ## @brief Placeholder replacing the version of a failed report source
-#        (REQ-030).
-_REPORT_UNAVAILABLE = "unavailable"
+#        before the reason suffix is appended (REQ-030).
+_REPORT_UNKNOWN = "unknown"
 
 
 def _cache_path() -> Path:
@@ -220,11 +220,27 @@ def _format_report_row(label: str, value: str) -> str:
     """@brief Render one report row with the label padded to 17 columns.
 
     @param label {str} Row label (e.g. `Latest @ PyPI`).
-    @param value {str} Version string or `unavailable` placeholder.
+    @param value {str} Version string or `unknown (<reason>)` placeholder.
     @return {str} Row shaped `<label padded to 17> : <value>` (REQ-027).
     @satisfies REQ-027
     """
     return f"{label:<{_REPORT_LABEL_WIDTH}} : {value}"
+
+
+def _unknown_value(reason: str) -> str:
+    """@brief Render the failed-source placeholder with its reason.
+
+    @details REQ-030 mandates the `unknown (<reason>)` shape, where
+             `<reason>` names the actually encountered error (e.g. an
+             HTTP 403/404 rate-limit response or a timeout); an empty
+             reason degrades to the bare `unknown` placeholder.
+    @param reason {str} String rendering of the encountered error.
+    @return {str} `unknown (<reason>)`, or `unknown` when reason is empty.
+    @satisfies REQ-030
+    """
+    if not reason:
+        return _REPORT_UNKNOWN
+    return f"{_REPORT_UNKNOWN} ({reason})"
 
 
 def _print_colored(color: str, message: str) -> None:
@@ -306,7 +322,8 @@ def run_version_report(installed_version: str) -> None:
     @details Flow: fetch PyPI -> fetch GitHub -> emit the three aligned
              rows. Each failed fetch emits one bright red note naming the
              failed source with the configured error color (REQ-030) and
-             its row prints `unavailable` in place of the version. Rows
+             its row prints `unknown (<reason>)`, carrying the actually
+             encountered error, in place of the version (REQ-030). Rows
              print in order: installed, PyPI, GitHub; version columns
              aligned via a 17-character label pad (REQ-027). The GitHub
              row shows the latest release tag stripped of its `v` prefix,
@@ -323,6 +340,8 @@ def run_version_report(installed_version: str) -> None:
     check_epoch = time.time()
     pypi_version: str | None = None
     github_version: str | None = None
+    pypi_reason = ""
+    github_reason = ""
     try:
         pypi_version = _fetch_latest_pypi_version()
     except (
@@ -331,6 +350,7 @@ def run_version_report(installed_version: str) -> None:
         OSError,
         ValueError,
     ) as error:
+        pypi_reason = str(error)
         _print_colored(
             colors["error_color"], f"Version check failed @ PyPI: {error}"
         )
@@ -342,6 +362,7 @@ def run_version_report(installed_version: str) -> None:
         OSError,
         ValueError,
     ) as error:
+        github_reason = str(error)
         _print_colored(
             colors["error_color"], f"Version check failed @ GitHub: {error}"
         )
@@ -349,7 +370,9 @@ def run_version_report(installed_version: str) -> None:
     print(
         _format_report_row(
             _REPORT_LABEL_PYPI,
-            pypi_version if pypi_version is not None else _REPORT_UNAVAILABLE,
+            pypi_version
+            if pypi_version is not None
+            else _unknown_value(pypi_reason),
         )
     )
     print(
@@ -357,7 +380,7 @@ def run_version_report(installed_version: str) -> None:
             _REPORT_LABEL_GITHUB,
             github_version
             if github_version is not None
-            else _REPORT_UNAVAILABLE,
+            else _unknown_value(github_reason),
         )
     )
     if pypi_version is not None:
