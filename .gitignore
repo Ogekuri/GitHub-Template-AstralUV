@@ -43,6 +43,7 @@
 !scripts/**/*.sh
 !images/
 !images/**/*
+!dist/
 
 ##########################################
 # Exlucde specific files and directories #
@@ -64,7 +65,11 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
+# Generated release artifacts only; dist/ itself stays traversable so
+# versionable files under it can be selectively re-included.
+dist/*.tar.gz
+dist/*.whl
+dist/*.zip
 downloads/
 eggs/
 .eggs/
