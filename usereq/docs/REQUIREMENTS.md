@@ -47,6 +47,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **A-10**: No unit tests were explicitly requested; Section 4 defines verification procedures for downstream development.
 - **A-11**: The console-script entry point name equals `%PROGRAM%` (`githubtemplateastraluv`).
 - **A-12**: The renamed skeleton copy (`src/templateastraluv/`) and the distributed application sources (`src/githubtemplateastraluv/`) coexist as prescribed by the user request.
+- **A-13**: The GitHub breaking change rolling the `ubuntu-latest` label to Ubuntu 26.04 (October 19 - November 19, 2026) is mitigated by pinning the release-workflow runner to the explicit `ubuntu-24.04` label (behavior-preserving mitigation) instead of adopting `ubuntu-26.04`.
 
 ## 2. Project Requirements
 
@@ -147,6 +148,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **DES-038**: MUST print readable per-phase logs and a final summary reporting the overall outcome and the failed phase on any failure.
 - **DES-039**: MUST ignore generated distribution artifacts through specific `.gitignore` rules matching `dist/*.tar.gz`, `dist/*.whl`, and `dist/*.zip` instead of the blanket `dist/` exclusion.
 - **DES-040**: MUST preserve the `.gitignore` inverse exclude-then-include strategy and make `dist/` traversable so versionable files under it can be selectively re-included.
+- **DES-041**: MUST pin the `runs-on` label of every job in `.github/workflows/release-pypi.yml` to the explicit label `ubuntu-24.04` and MUST NOT use the `ubuntu-latest` label.
 
 ### 3.2 Functions
 - **REQ-001**: MUST print the verbatim English help screen (template below) when invoked with `--help` or with no arguments.
@@ -219,3 +221,4 @@ Commands:
 - **TST-017**: MUST verify DES-026 through DES-038 by executing `./scripts/pre-release-check.sh`; pass iff exit code is 0 and `git status --porcelain --ignored` equals the pre-execution baseline.
 - **TST-018**: MUST verify DES-027, DES-034, and DES-035 in an isolated repository copy with an injected failing tool; pass iff exit code is non-zero, the diagnostic names the failed phase, and no generated artifacts remain.
 - **TST-019**: MUST verify DES-039 and DES-040 with `git check-ignore -v --no-index`; pass iff generated artifacts under `dist/` match the specific rules and `dist/` itself is not ignored.
+- **TST-020**: MUST verify DES-041 by parsing `.github/workflows/release-pypi.yml` and asserting every `runs-on` value equals `ubuntu-24.04` and no `ubuntu-latest` label remains.

@@ -14,7 +14,7 @@ permissions:
 jobs:
   # 1. Controlla se siamo sul branch corretto
   check-branch:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       is_master: ${{ steps.check.outputs.is_master }}
     steps:
@@ -38,7 +38,7 @@ jobs:
   # 2. Builds the distributions and creates the GitHub release
   #    (runs for every canonical version tag on any branch)
   build-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -129,7 +129,7 @@ jobs:
   publish-pypi:
     needs: [check-branch, build-release]
     if: needs.check-branch.outputs.is_master == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       id-token: write
     steps:
