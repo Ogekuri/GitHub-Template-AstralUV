@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.4](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.4) - 2026-11-20
+## [0.0.5](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.5) - 2026-11-20
 ### 🏗️  Implementations
 - implement CLI app, version check, tests, and runtime docs [useReq] *(core)*
   Implement the SRS end-to-end from the extracted skeleton:
@@ -14,6 +14,13 @@
   model and REFERENCES.md refreshed.
 
 ### 🐛  Bug Fixes
+- rebuild 0.0.4 release artifacts and align uv.lock [useReq] *(dist)*
+  The v0.0.3 and v0.0.4 tags carried the stale 0.0.2 dist/ pair, so the
+  release workflow published a duplicate 0.0.2 that PyPI rejected and the
+  PyPI row of --ver stayed 0.0.2 while GitHub reached 0.0.4. Rebuilt the
+  dist/ pair from the 0.0.4 tree via scripts/build.sh (DES-042, DES-023)
+  and aligned uv.lock to 0.0.4; suite 45 passed incl. the dist-metadata
+  contract test; pre-release-check passed with clean repository.
 - Update uv.lock file.
 - tolerate stale-schema files in --print/--info rendering [useReq] *(config)*
   A configuration file persisted by the pre-55fd527 schema (Notifications
@@ -112,6 +119,6 @@
 
 # History
 
-- \[0.0.4\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.4
+- \[0.0.5\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.5
 
-[0.0.4]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.4
+[0.0.5]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.5
