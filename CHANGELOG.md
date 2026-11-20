@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.2](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.2) - 2026-11-20
+## [0.0.3](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.3) - 2026-11-20
 ### 🏗️  Implementations
 - implement CLI app, version check, tests, and runtime docs [useReq] *(core)*
   Implement the SRS end-to-end from the extracted skeleton:
@@ -14,6 +14,29 @@
   model and REFERENCES.md refreshed.
 
 ### 🐛  Bug Fixes
+- tolerate stale-schema files in --print/--info rendering [useReq] *(config)*
+  A configuration file persisted by the pre-55fd527 schema (Notifications
+  section) aborted --print and --info with a sections-mismatch error
+  instead of printing the mandated schema-empty tree (TST-008, DES-010).
+  New config.load_display projects the persisted payload onto the schema:
+  unknown keys are dropped and known missing keys fall back to schema
+  defaults; --print and --info load through it. load_strict and
+  --get/--set/--unset/--print-raw keep strict validation (REQ-023);
+  malformed JSON and non-object roots still fail with exit 1.
+  HDT stale-schema reproducer added; uv run pytest: 45 passed;
+  req-static-check clean; WORKFLOW.md and REFERENCES.md updated.
+- Update uv.lock file.
+- rebuild release artifacts with valid PyPI classifier [useReq] *(dist)*
+  dist/ still held the stale v0.0.0 artifacts embedding the PyPI-rejected
+  'Topic :: Software Development :: Configuration Management' classifier;
+  the release workflow publishes dist/ verbatim at the tag commit
+  (DES-042) and would repeat the 400 Bad Request (DES-016, DES-017).
+  Rebuild dist/ via scripts/build.sh into v0.0.2 artifacts carrying the
+  valid 'Topic :: Utilities' metadata. Add the HDT contract test
+  test_dist_artifacts_metadata_match_pyproject_and_pypi_acceptance
+  (embedded Version/Classifier equal to pyproject.toml, rejected
+  classifier absent) and fix a pre-existing no-op assert in TST-013.
+  Tests: uv run --frozen pytest -> 44 passed; static check clean.
 - replace invalid PyPI topic classifier [useReq] *(pyproject)*
   PyPI rejected the distribution upload with 400 Bad Request: 'Topic :: Software Development :: Configuration Management' is not a valid classifier. Replace it with the valid 'Topic :: Utilities' classifier so OIDC trusted publishing (DES-016, DES-017) succeeds.
   Add the HDT contract test test_pyproject_classifiers_are_pypi_accepted asserting every project.classifiers entry stays PyPI-valid, and derive the help/report version oracles from the single version source core.__version__ (restores TST-001/TST-002 after the 0.0.1 version bump).
@@ -21,6 +44,10 @@
 - Fix clean.sh script.
 
 ### 🚜  Changes
+- BREAKING CHANGE: remove configurable notification colors, embed hardcoded color JSON [useReq] *(config)*
+  REQ-024/REQ-025 removed: the Notifications section leaves the configuration schema and every canonical path is now rejected (REQ-022). REQ-026 rewritten; REQ-040/REQ-041 added: all colors live in the embedded internal JSON COLOR_CONFIG_JSON of the new src/githubtemplateastraluv/colors.py (bright_green/bright_red assignments plus the 7-token ANSI palette). version_check now consumes colors.notification_colors; config.load_tolerant and config.notification_colors are removed. TST-008, TST-010, TST-011 updated for the schema-empty configuration; README rewritten accordingly. Verification: uv run pytest -> 44 passed; req-static-check clean; schema-empty CLI smoke test (print/get/print-raw) verified.
+- document all implemented commands in inline help and docs [useReq] *(help)*
+  REQ-001 help template now lists a Configuration Commands section with --get, --set, --unset, --print, --info, --print-raw and fixes the --help entry; the Commands: ... placeholder is removed (A-02). New REQ-039 mandates exhaustive command enumeration in --help; TST-001 verifies REQ-001 and REQ-039 through the byte-exact help oracle. README command reference plus generated REFERENCES.md and WORKFLOW.md updated. Verification: uv run pytest -> 44 passed; req-static-check clean.
 - render config tables with rounded borders and double header separator [useReq] *(config-render)*
   Requirements: add DES-053..DES-056 mandating the --print/--info table glyph palette (dash, pipe, rounded corners, single-line junctions, double-line header separator) and TST-024 verification procedure.; Source: format_table/border in config_render.py now emit rounded corners, the double-line header/content separator, and single-line separators between consecutive content rows with identical measured column boundaries.; Docs: WORKFLOW.md call-trace role text updated; REFERENCES.md regenerated.; Tests: existing pytest suite (42 tests) passes; no golden-glyph tests existed.
 - prune all stale dist formats, make dist artifacts non-mandatory [useReq] *(build)*
@@ -84,6 +111,6 @@
 
 # History
 
-- \[0.0.2\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.2
+- \[0.0.3\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.3
 
-[0.0.2]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.2
+[0.0.3]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.3
