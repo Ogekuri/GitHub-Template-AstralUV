@@ -136,8 +136,8 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
           [`src/githubtemplateastraluv/version_check.py`]
     - `management.print_help(...)`: print full help screen
       [`src/githubtemplateastraluv/management.py`]
-      - `management.build_help_text(...)`: assemble REQ-001 template
-        [`src/githubtemplateastraluv/management.py`]
+      - `management.build_help_text(...)`: assemble REQ-001/REQ-039 help
+        template [`src/githubtemplateastraluv/management.py`]
         - `management._management_entry(...)`: render one aligned command
           line [`src/githubtemplateastraluv/management.py`]
     - `management.cmd_upgrade(...)`: Linux-only `uv tool install` in the

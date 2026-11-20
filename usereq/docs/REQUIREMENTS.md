@@ -36,7 +36,7 @@ Keyword substitution mapping (skeleton initialization):
 
 Assumptions (non-normative; reversible interpretations of unspecified details):
 - **A-01**: The literal `(x.y.z)` in the help usage line is a runtime placeholder for the current installed version; all remaining help text is printed verbatim.
-- **A-02**: The `Commands:` section of the help screen ends with the literal `...` line because no application commands are specified.
+- **A-02**: The six configuration commands are documented in the help screen under a `Configuration Commands:` section; the former `Commands:` section ending with the literal `...` line is removed.
 - **A-03**: Cache JSON key names are unspecified; the implementation MUST choose stable descriptive keys (e.g., `last_check_epoch`, `last_check_human`, `idle_time_epoch`, `idle_time_human`) and use them consistently.
 - **A-04**: A successful check with no newer release prints no notification and refreshes the cache with the standard 3600-second idle-delay.
 - **A-05**: On a failed check, the cache last-check timestamp records the failed attempt time and idle-time equals attempt time plus 86400 seconds.
@@ -179,14 +179,19 @@ Management Commands:
   --uninstall - Uninstall githubtemplateastraluv on Linux; print manual command elsewhere.
   --ver       - Print the githubtemplateastraluv version.
   --version   - Print the githubtemplateastraluv version.
-  --help      - Print the full help screen or the help text of a specific command.
+  --help      - Print the full help screen.
+
+Configuration Commands:
+  --get       - Print the value at Path as one JSON document.
+  --set       - Parse Value into the schema type and persist it at Path.
+  --unset     - Restore Path to its schema default and persist atomically.
+  --print     - Print current values as a box-drawing tree, whole schema or at Path.
+  --info      - Print parameter documentation with defaults, constraints, and examples.
+  --print-raw - Print the exact bytes of the configuration JSON file.
 
 Options:
   --develop   - With --upgrade: install from the GitHub development source.
   --force     - With --upgrade: force full re-download and reinstallation.
-
-Commands:
-  ...
 ```
 
 - **REQ-002**: MUST print for `--ver` and `--version` the three-row version report with aligned version columns, bypassing the idle-time gate and cache file.
@@ -226,9 +231,10 @@ Commands:
 - **REQ-036**: MUST execute `uv tool install githubtemplateastraluv --force --reinstall --refresh --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` when `--upgrade --develop --force` runs on Linux.
 - **REQ-037**: MUST apply the forcing options `--force --reinstall --refresh` to the upgrade `uv tool install` command only when `--force` accompanies `--upgrade`.
 - **REQ-038**: MUST interpret `--force` exclusively as an auxiliary modifier of `--upgrade`, leaving every other argument combination to the existing dispatch behavior.
+- **REQ-039**: MUST list every implemented command flag in the `--help` screen under Management Commands or Configuration Commands, each with a one-line English description.
 
 ## 4. Test Requirements
-- **TST-001**: MUST verify REQ-001 by running the CLI with no arguments and with `--help`; pass iff stdout equals the 3.2 template with `(x.y.z)` replaced by the current version.
+- **TST-001**: MUST verify REQ-001 and REQ-039 by running the CLI with no arguments and with `--help`; pass iff stdout equals the 3.2 template with `(x.y.z)` replaced by the current version.
 - **TST-002**: MUST verify REQ-002 by invoking `--ver` and asserting the three-row aligned report prints and the fetches execute even with an unexpired cache file.
 - **TST-003**: MUST verify REQ-003, REQ-005, REQ-032, REQ-035, and REQ-036 on Linux (or a mocked platform) by asserting the exact PyPI, forced PyPI, develop, forced develop, and uninstall `uv` command strings execute.
 - **TST-004**: MUST verify REQ-004, REQ-006, and REQ-033 by simulating a non-Linux platform and asserting no `uv` subprocess spawns while the warnings and manual commands print.

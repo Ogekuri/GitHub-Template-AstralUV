@@ -143,14 +143,19 @@ Management Commands:
   --uninstall - Uninstall githubtemplateastraluv on Linux; print manual command elsewhere.
   --ver       - Print the githubtemplateastraluv version.
   --version   - Print the githubtemplateastraluv version.
-  --help      - Print the full help screen or the help text of a specific command.
+  --help      - Print the full help screen.
+
+Configuration Commands:
+  --get       - Print the value at Path as one JSON document.
+  --set       - Parse Value into the schema type and persist it at Path.
+  --unset     - Restore Path to its schema default and persist atomically.
+  --print     - Print current values as a box-drawing tree, whole schema or at Path.
+  --info      - Print parameter documentation with defaults, constraints, and examples.
+  --print-raw - Print the exact bytes of the configuration JSON file.
 
 Options:
   --develop   - With --upgrade: install from the GitHub development source.
   --force     - With --upgrade: force full re-download and reinstallation.
-
-Commands:
-  ...
 ```
 
 ### Version report (`--ver` / `--version`)

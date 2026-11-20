@@ -459,7 +459,7 @@ from githubtemplateastraluv import (
 
 ---
 
-# management.py | Python | 247L | 13 symbols | 2 imports | 47 comments
+# management.py | Python | 274L | 13 symbols | 2 imports | 47 comments
 > Path: `src/githubtemplateastraluv/management.py`
 
 ## Imports
@@ -485,11 +485,11 @@ import sys
 - @satisfies A-09 CTN-009
 
 ### fn `def _management_entry(flag: str, description: str) -> str` `priv` (L101-111)
-- @brief Render one aligned management-command help line.
-- @param flag {str} Command flag (e.g. `--upgrade`).
+- @brief Render one aligned help-screen entry line.
+- @param flag {str} Command or option flag (e.g. `--upgrade`).
 - @param description {str} Description text placed after the dash.
 - @return {str} Line matching the REQ-001 template alignment.
-- @satisfies REQ-001
+- @satisfies REQ-001 REQ-039
 
 ### fn `def _upgrade_command(develop: bool, force: bool) -> list[str]` `priv` (L112-133)
 - @brief Select the exact `uv tool install` argv for the variant.
@@ -499,20 +499,20 @@ import sys
 - @return {list[str]} Exact argv of the requested upgrade variant.
 - @satisfies REQ-003 REQ-032 REQ-035 REQ-036 REQ-037
 
-### fn `def build_help_text(version: str) -> str` (L134-184)
+### fn `def build_help_text(version: str) -> str` (L134-211)
 - @brief Render the full help screen text (REQ-001 template).
-- @details The literal `(x.y.z)` slot of the template receives the installed version (A-01); the `Options:` section documents the `--develop` and `--force` modifiers of `--upgrade`; the `Commands:` section ends with the literal `...` line (A-02).
+- @details The literal `(x.y.z)` slot of the template receives the installed version (A-01); the `Management Commands:` section lists every management command, the `Configuration Commands:` section lists every configuration command (REQ-039), and the `Options:` section documents the `--develop` and `--force` modifiers of `--upgrade`.
 - @param version {str} Installed version in `x.y.z` format.
 - @return {str} Help text without trailing newline; the caller prints it.
-- @satisfies REQ-001 A-01 A-02
+- @satisfies REQ-001 REQ-039 A-01 A-02
 
-### fn `def print_help(version: str) -> int` (L185-195)
+### fn `def print_help(version: str) -> int` (L212-222)
 - @brief Print the full help screen to stdout.
 - @param version {str} Installed version in `x.y.z` format.
 - @return {int} Always 0.
 - @satisfies REQ-001 PRJ-005
 
-### fn `def cmd_upgrade(develop: bool = False, force: bool = False) -> int` (L196-230)
+### fn `def cmd_upgrade(develop: bool = False, force: bool = False) -> int` (L223-257)
 - @brief Reinstall the tool via `uv tool install` on Linux.
 - @details On Linux the exact argv selected by `develop` and `force` executes through subprocess and its exit code propagates: UPGRADE_COMMAND for the standard PyPI process (REQ-003), UPGRADE_FORCE_COMMAND for the forced PyPI reinstallation (REQ-035), UPGRADE_DEVELOP_COMMAND for the standard GitHub development source (REQ-032), and UPGRADE_DEVELOP_FORCE_COMMAND for the forced development reinstallation (REQ-036); forcing options apply only when `force` is True (REQ-037). On any other OS no process spawns; a warning plus the matching manual command print instead (REQ-004, REQ-033).
 - @param develop {bool} True selects the GitHub development source (`--upgrade --develop`); False selects the PyPI source (default).
@@ -520,7 +520,7 @@ import sys
 - @return {int} 0 on manual fallback or successful subprocess; otherwise the `uv` process exit code.
 - @satisfies REQ-003 REQ-004 REQ-032 REQ-033 REQ-035 REQ-036 REQ-037 CTN-009
 
-### fn `def cmd_uninstall() -> int` (L231-248)
+### fn `def cmd_uninstall() -> int` (L258-275)
 - @brief Uninstall the tool via `uv tool uninstall` on Linux.
 - @details On Linux the exact UNINSTALL_COMMAND argv executes through subprocess and its exit code propagates. On any other OS no process spawns; a warning plus the manual command print instead (REQ-006).
 - @return {int} 0 on manual fallback or successful subprocess; otherwise the `uv` process exit code.
@@ -538,10 +538,10 @@ import sys
 |`is_linux`|fn|pub|89-100|def is_linux() -> bool|
 |`_management_entry`|fn|priv|101-111|def _management_entry(flag: str, description: str) -> str|
 |`_upgrade_command`|fn|priv|112-133|def _upgrade_command(develop: bool, force: bool) -> list[...|
-|`build_help_text`|fn|pub|134-184|def build_help_text(version: str) -> str|
-|`print_help`|fn|pub|185-195|def print_help(version: str) -> int|
-|`cmd_upgrade`|fn|pub|196-230|def cmd_upgrade(develop: bool = False, force: bool = Fals...|
-|`cmd_uninstall`|fn|pub|231-248|def cmd_uninstall() -> int|
+|`build_help_text`|fn|pub|134-211|def build_help_text(version: str) -> str|
+|`print_help`|fn|pub|212-222|def print_help(version: str) -> int|
+|`cmd_upgrade`|fn|pub|223-257|def cmd_upgrade(develop: bool = False, force: bool = Fals...|
+|`cmd_uninstall`|fn|pub|258-275|def cmd_uninstall() -> int|
 
 
 ---

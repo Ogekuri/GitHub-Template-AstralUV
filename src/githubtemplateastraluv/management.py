@@ -99,12 +99,12 @@ def is_linux() -> bool:
 
 
 def _management_entry(flag: str, description: str) -> str:
-    """@brief Render one aligned management-command help line.
+    """@brief Render one aligned help-screen entry line.
 
-    @param flag {str} Command flag (e.g. `--upgrade`).
+    @param flag {str} Command or option flag (e.g. `--upgrade`).
     @param description {str} Description text placed after the dash.
     @return {str} Line matching the REQ-001 template alignment.
-    @satisfies REQ-001
+    @satisfies REQ-001 REQ-039
     """
     return f"  {flag:<{_FLAG_COLUMN_WIDTH}} - {description}"
 
@@ -135,12 +135,14 @@ def build_help_text(version: str) -> str:
     """@brief Render the full help screen text (REQ-001 template).
 
     @details The literal `(x.y.z)` slot of the template receives the
-             installed version (A-01); the `Options:` section documents
-             the `--develop` and `--force` modifiers of `--upgrade`; the
-             `Commands:` section ends with the literal `...` line (A-02).
+             installed version (A-01); the `Management Commands:` section
+             lists every management command, the `Configuration Commands:`
+             section lists every configuration command (REQ-039), and the
+             `Options:` section documents the `--develop` and `--force`
+             modifiers of `--upgrade`.
     @param version {str} Installed version in `x.y.z` format.
     @return {str} Help text without trailing newline; the caller prints it.
-    @satisfies REQ-001 A-01 A-02
+    @satisfies REQ-001 REQ-039 A-01 A-02
     """
     entries = [
         _management_entry(
@@ -155,10 +157,34 @@ def build_help_text(version: str) -> str:
         ),
         _management_entry("--ver", f"Print the {PROGRAM_NAME} version."),
         _management_entry("--version", f"Print the {PROGRAM_NAME} version."),
+        _management_entry("--help", "Print the full help screen."),
+    ]
+    configuration_entries = [
         _management_entry(
-            "--help",
-            "Print the full help screen or the help text of a specific "
-            "command.",
+            "--get",
+            "Print the value at Path as one JSON document.",
+        ),
+        _management_entry(
+            "--set",
+            "Parse Value into the schema type and persist it at Path.",
+        ),
+        _management_entry(
+            "--unset",
+            "Restore Path to its schema default and persist atomically.",
+        ),
+        _management_entry(
+            "--print",
+            "Print current values as a box-drawing tree, "
+            "whole schema or at Path.",
+        ),
+        _management_entry(
+            "--info",
+            "Print parameter documentation with defaults, "
+            "constraints, and examples.",
+        ),
+        _management_entry(
+            "--print-raw",
+            "Print the exact bytes of the configuration JSON file.",
         ),
     ]
     option_entries = [
@@ -175,9 +201,10 @@ def build_help_text(version: str) -> str:
     lines = (
         [header, "", "Management Commands:"]
         + entries
+        + ["", "Configuration Commands:"]
+        + configuration_entries
         + ["", "Options:"]
         + option_entries
-        + ["", "Commands:", "  ..."]
     )
     return "\n".join(lines)
 
