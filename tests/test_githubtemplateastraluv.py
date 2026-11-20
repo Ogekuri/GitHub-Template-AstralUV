@@ -2,8 +2,8 @@
 ## @file test_githubtemplateastraluv.py
 # @brief HDT unit suite (Generator mode) covering TST-001..TST-007,
 #        TST-012..TST-015, TST-021, TST-022, TST-023 for the
-#        githubtemplateastraluv CLI, its release workflow, and its
-#        repository tooling scripts.
+#        githubtemplateastraluv CLI, its release workflow, its
+#        repository tooling scripts, and its packaging-artifact contract.
 # @details HDT static-analysis artifact (section 7.1):
 #          - UUTs and levels: L0 = management.is_linux,
 #            management._management_entry, version_check._parse_version,
@@ -26,6 +26,10 @@
 #            Node24-or-later manifest (DES-015, CTN-010) plus the PyPI
 #            trusted-publisher contract (DES-016, DES-017, DES-018); the
 #            tracked workflow file is the read-only deterministic fixture.
+#          - Packaging-artifact contract: embedded `Version`/`Classifier`
+#            core metadata of the tracked `dist/` sdist and wheel versus
+#            `pyproject.toml` (DES-016, DES-017, DES-042); the tracked
+#            artifacts are the read-only deterministic fixtures.
 #          - Execution plan (dev signal): `uv run pytest` from the project
 #            root; CI gates L0 -> L1 -> L2 fail-fast outside test bodies.
 import email.message
@@ -35,10 +39,12 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import tarfile
 import time
 import tomllib
 import urllib.error
 from unittest import mock
+import zipfile
 
 import pytest
 
@@ -672,8 +678,10 @@ def test_ver_report_marks_failed_pypi_source_unknown(
         exit_code = core.main(["--ver"])
     out = capsys.readouterr().out
     assert exit_code == 0
-    assert "Latest @ PyPI     : unknown (HTTP Error 503: Service"
-    " Unavailable)\n" in out
+    assert (
+        "Latest @ PyPI     : unknown (HTTP Error 503: Service"
+        " Unavailable)\n" in out
+    )
     assert "Latest @ GitHub   : 8.8.8\n" in out
     assert "\033[91m" in out
     assert "@ PyPI" in out
@@ -951,6 +959,96 @@ def test_pyproject_classifiers_are_pypi_accepted():
     classifiers = tuple(metadata["project"]["classifiers"])
     assert PYPI_REJECTED_CLASSIFIER not in classifiers
     assert classifiers == PYPI_VALID_CLASSIFIERS
+
+
+## @brief Release-artifact directory exercised by the dist/ packaging
+#         contract; `.github/workflows/release-pypi.yml` publishes the
+#         tracked `dist/` files verbatim at the tagged commit (DES-042),
+#         so their embedded core metadata is a release-blocking contract.
+DIST_DIR = Path(__file__).resolve().parents[1] / "dist"
+
+
+def _dist_artifact_paths():
+    """@brief Collect the tracked release artifacts from dist/.
+
+    @details Returns the first-level wheels (`*.whl`) and sdists
+            (`*.tar.gz`) sorted by file name so assertions stay
+            order-stable; every other dist/ entry is ignored. Read-only
+            filesystem access. Complexity: O(A) over artifacts A.
+    @return {List[Path]} Sorted artifact paths; empty when dist/ is
+            absent.
+    """
+    if not DIST_DIR.is_dir():
+        return []
+    candidates = sorted(DIST_DIR.iterdir(), key=lambda item: item.name)
+    return [
+        item for item in candidates
+        if item.is_file() and item.name.endswith((".whl", ".tar.gz"))
+    ]
+
+
+def _artifact_core_metadata(path):
+    """@brief Extract the RFC 822 core-metadata block of one artifact.
+
+    @details Wheels expose `<name>-<version>.dist-info/METADATA`;
+            sdists expose `<name>-<version>/PKG-INFO`; both header
+            blocks are parsed with `email.message_from_string`.
+            Read-only archive access. Complexity: O(S) over archive
+            bytes S.
+    @param path {Path} Release artifact ending in `.whl` or `.tar.gz`.
+    @return {email.message.Message} Parsed core metadata exposing the
+            `Version` header and the repeated `Classifier` headers.
+    @throws {StopIteration} If the archive carries no core-metadata
+            member (structurally invalid artifact, DES-033 contract).
+    @throws {AssertionError} If the located PKG-INFO member is not an
+            extractable regular file (defensive `Optional` narrowing).
+    """
+    if path.name.endswith(".whl"):
+        with zipfile.ZipFile(path) as archive:
+            member = next(
+                name for name in archive.namelist()
+                if name.endswith(".dist-info/METADATA")
+            )
+            text = archive.read(member).decode("utf-8")
+    else:
+        with tarfile.open(path, "r:gz") as archive:
+            info = next(
+                item for item in archive.getmembers()
+                if item.isfile() and item.name.endswith("/PKG-INFO")
+            )
+            member_file = archive.extractfile(info)
+            assert member_file is not None, "PKG-INFO must be extractable"
+            text = member_file.read().decode("utf-8")
+    return email.message_from_string(text)
+
+
+def test_dist_artifacts_metadata_match_pyproject_and_pypi_acceptance():
+    """@brief Packaging contract: dist/ artifacts carry pyproject metadata.
+
+    @details expected_output = none; expected_exception = AssertionError
+            when dist/ lacks the sdist-plus-wheel publishing pair, any
+            artifact embeds the PyPI-rejected classifier literal, or any
+            artifact's embedded `Version`/`Classifier` core metadata
+            diverges from the tracked `pyproject.toml` declarations
+            (staleness the release workflow would publish verbatim;
+            DES-017, DES-042). Parses the tracked artifacts read-only
+            (same contract-fixture strategy as the pyproject test
+            above); complexity: O(A*S) over artifacts A and bytes S.
+    """
+    metadata = tomllib.loads(PYPROJECT_PATH.read_text(encoding="utf-8"))
+    expected_version = metadata["project"]["version"]
+    expected_classifiers = tuple(metadata["project"]["classifiers"])
+    artifacts = _dist_artifact_paths()
+    wheels = [item for item in artifacts if item.name.endswith(".whl")]
+    sdists = [item for item in artifacts if item.name.endswith(".tar.gz")]
+    assert wheels, "dist/ must hold at least one wheel for publishing"
+    assert sdists, "dist/ must hold at least one sdist for publishing"
+    for artifact in artifacts:
+        artifact_metadata = _artifact_core_metadata(artifact)
+        classifiers = tuple(artifact_metadata.get_all("Classifier") or ())
+        assert PYPI_REJECTED_CLASSIFIER not in classifiers
+        assert artifact_metadata["Version"] == expected_version
+        assert classifiers == expected_classifiers
 
 
 ## @brief Repository tooling scripts exercised by TST-022 and TST-023;
