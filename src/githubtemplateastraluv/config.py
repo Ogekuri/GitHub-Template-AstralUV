@@ -260,6 +260,29 @@ def ensure_bootstrapped() -> None:
         raise ConfigError(f"cannot initialize configuration: {error}")
 
 
+def _read_payload() -> Any:
+    """@brief Read and parse the persisted configuration JSON document.
+
+    @details Resolves `config_path`, requires an existing file, reads it
+             as UTF-8 text, and parses the JSON document; every failure
+             raises without returning a partial result (REQ-023).
+    @return {Any} Parsed JSON payload.
+    @throws {ConfigError} When the file is absent, unreadable, or
+            malformed JSON.
+    """
+    path = config_path()
+    if not path.exists():
+        raise ConfigError(f"configuration file not found: {path}")
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise ConfigError(f"cannot read configuration file: {error}")
+    try:
+        return json.loads(text)
+    except ValueError as error:
+        raise ConfigError(f"invalid JSON in {path}: {error}")
+
+
 def load_strict() -> dict[str, dict[str, str]]:
     """@brief Load and strictly validate the global configuration.
 
@@ -270,19 +293,46 @@ def load_strict() -> dict[str, dict[str, str]]:
     @throws {ConfigError} When the file is absent, unreadable, malformed
             JSON, or schema-invalid.
     """
-    path = config_path()
-    if not path.exists():
-        raise ConfigError(f"configuration file not found: {path}")
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError as error:
-        raise ConfigError(f"cannot read configuration file: {error}")
-    try:
-        payload = json.loads(text)
-    except ValueError as error:
-        raise ConfigError(f"invalid JSON in {path}: {error}")
+    payload = _read_payload()
     validate_config(payload)
     return payload
+
+
+def load_display() -> dict[str, dict[str, str]]:
+    """@brief Load the schema-shaped display view of the configuration.
+
+    @details Read-only loader of the schema-driven `--print` and `--info`
+             renderers (DES-010, DES-012): requires a JSON-object root,
+             then projects the payload onto the schema. Content persisted
+             by an older schema version never blocks rendering (TST-008):
+             unknown sections and parameters are dropped, and schema
+             branches or parameters missing from the file fall back to
+             their schema defaults, so the result is always safe for the
+             renderers' direct payload indexing. Unreadable, malformed,
+             and non-object files remain hard failures (REQ-023).
+    @return {dict[str, dict[str, str]]} Schema-shaped payload: section
+            token to parameter token to current value (schema default
+            when absent from the file).
+    @throws {ConfigError} When the file is absent, unreadable, malformed
+            JSON, or its root is not a JSON object.
+    @satisfies DES-010 TST-008 REQ-019 REQ-023
+    """
+    payload = _read_payload()
+    if not isinstance(payload, dict):
+        raise ConfigError(
+            "configuration root must be a JSON object; "
+            f"got {type(payload).__name__}"
+        )
+    display: dict[str, dict[str, str]] = {}
+    for section in SCHEMA:
+        branch = payload.get(section.token)
+        if not isinstance(branch, dict):
+            branch = {}
+        display[section.token] = {
+            param.token: branch.get(param.token, param.default)
+            for param in section.params
+        }
+    return display
 
 
 def resolve_segments(path: str) -> tuple[str, ...]:

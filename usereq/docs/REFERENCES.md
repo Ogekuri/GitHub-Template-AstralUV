@@ -69,7 +69,7 @@ from typing import Any
 
 ---
 
-# config.py | Python | 597L | 23 symbols | 7 imports | 51 comments
+# config.py | Python | 647L | 25 symbols | 7 imports | 53 comments
 > Path: `src/githubtemplateastraluv/config.py`
 
 ## Imports
@@ -137,26 +137,39 @@ from typing import Any
 - @return {None}
 - @throws {ConfigError} When directories cannot be created or the default file cannot be written.
 
-### fn `def load_strict() -> dict[str, dict[str, str]]` (L263-287)
+### fn `def _read_payload() -> Any` `priv` (L263-285)
+- @brief Read and parse the persisted configuration JSON document.
+- @details Resolves `config_path`, requires an existing file, reads it as UTF-8 text, and parses the JSON document; every failure raises without returning a partial result (REQ-023).
+- @return {Any} Parsed JSON payload.
+- @throws {ConfigError} When the file is absent, unreadable, or malformed JSON.
+
+### fn `def load_strict() -> dict[str, dict[str, str]]` (L286-300)
 - @brief Load and strictly validate the global configuration.
 - @details Reads the file selected by `config_path`, parses JSON, and applies `validate_config`; every failure raises instead of partially succeeding (REQ-022, REQ-023).
 - @return {dict[str, dict[str, str]]} Validated configuration payload.
 - @throws {ConfigError} When the file is absent, unreadable, malformed JSON, or schema-invalid.
 
-### fn `def resolve_segments(path: str) -> tuple[str, ...]` (L288-334)
+### fn `def load_display() -> dict[str, dict[str, str]]` (L301-337)
+- @brief Load the schema-shaped display view of the configuration.
+- @details Read-only loader of the schema-driven `--print` and `--info` renderers (DES-010, DES-012): requires a JSON-object root, then projects the payload onto the schema. Content persisted by an older schema version never blocks rendering (TST-008): unknown sections and parameters are dropped, and schema branches or parameters missing from the file fall back to their schema defaults, so the result is always safe for the renderers' direct payload indexing. Unreadable, malformed, and non-object files remain hard failures (REQ-023).
+- @return {dict[str, dict[str, str]]} Schema-shaped payload: section token to parameter token to current value (schema default when absent from the file).
+- @throws {ConfigError} When the file is absent, unreadable, malformed JSON, or its root is not a JSON object.
+- @satisfies DES-010 TST-008 REQ-019 REQ-023
+
+### fn `def resolve_segments(path: str) -> tuple[str, ...]` (L338-384)
 - @brief Resolve a canonical configuration path against the schema.
 - @details Case-sensitive colon-separated tokens (REQ-022). This schema defines exactly two depths: `Section` and `Section:Parameter`; no array or map parameters exist, so deeper segments and reserved operation tokens (`append`, `+`, `insert`) are rejected as unknown or misplaced.
 - @param path {str} Raw canonical path from the CLI.
 - @return {tuple[str, ...]} One or two resolved path tokens.
 - @throws {ConfigError} On empty paths, empty tokens, unknown section or parameter tokens, and excessive depth; messages list valid alternatives.
 
-### fn `def get_value(payload: dict[str, Any], segments: tuple[str, ...]) -> Any` (L335-348)
+### fn `def get_value(payload: dict[str, Any], segments: tuple[str, ...]) -> Any` (L385-398)
 - @brief Extract the JSON-serializable value at a resolved path.
 - @param payload {dict[str, Any]} Validated configuration payload.
 - @param segments {tuple[str, ...]} Tokens from `resolve_segments`.
 - @return {Any} Section dict copy for depth 1; parameter string for depth 2.
 
-### fn `def parse_value(spec: ParamSpec, raw: str) -> str` (L349-368)
+### fn `def parse_value(spec: ParamSpec, raw: str) -> str` (L399-418)
 - @brief Parse a raw CLI operand into the schema type of `spec`.
 - @details Selection parameters accept exactly one enum token; JSON quoting is not stripped, so quoted input is rejected (REQ-017 typed parsing before write).
 - @param spec {ParamSpec} Target parameter descriptor.
@@ -164,9 +177,9 @@ from typing import Any
 - @return {str} Validated enum token.
 - @throws {ConfigError} When `raw` is not an allowed value; the message enumerates valid values.
 
-### fn `def set_value(` (L369-372)
+### fn `def set_value(` (L419-422)
 
-### fn `def unset_value(` (L409-411)
+### fn `def unset_value(` (L459-461)
 - @brief Apply a validated `--set` mutation and return the result.
 - @details Depth 1 replaces the whole section with a parsed
 schema-compatible JSON object; depth 2 parses the operand
@@ -180,7 +193,7 @@ input payload is never mutated.
 - @throws {ConfigError} On path, JSON, type, enum, or whole-config
 validation failure; no persisted mutation occurs.
 
-### fn `def operand_values(` (L435-439)
+### fn `def operand_values(` (L485-489)
 - @brief Apply a `--unset` restore-to-default mutation.
 - @details Depth 1 restores all section parameter defaults; depth 2
 restores one parameter default (REQ-018). The resulting
@@ -191,7 +204,7 @@ payload is never mutated.
 - @return {dict[str, dict[str, str]]} New validated configuration.
 - @throws {ConfigError} On path resolution or validation failure.
 
-### fn `def _usage_examples(flag: str) -> str` `priv` (L470-504)
+### fn `def _usage_examples(flag: str) -> str` `priv` (L520-554)
 - @brief Extract the operand tokens following one CLI flag.
 - @brief Build schema-valid usage examples for one config flag.
 - @details Operands are every token after the first flag occurrence;
@@ -209,31 +222,31 @@ raised (REQ-022).
 - @throws {ConfigError} When the operand count is out of range; the
 message embeds schema-valid usage examples.
 
-### fn `def _fail(error: ConfigError) -> int` `priv` (L505-517)
+### fn `def _fail(error: ConfigError) -> int` `priv` (L555-567)
 - @brief Report a configuration failure and yield the exit status.
 - @details Diagnostics go to stderr with an `Error:` prefix; stdout stays untouched so no partial success output exists (REQ-023).
 - @param error {ConfigError} Failure carrying the diagnostic message.
 - @return {int} Always 1.
 
-### fn `def handle_get(args: list[str]) -> int` (L518-538)
+### fn `def handle_get(args: list[str]) -> int` (L568-588)
 - @brief Execute `--get Path` (REQ-016).
 - @details Bootstraps storage, loads strictly, resolves the canonical path, and prints the resolved value as one valid JSON document on stdout without decoration (JSON-quoted strings, objects for sections).
 - @param args {list[str]} CLI argument tokens excluding program name.
 - @return {int} 0 on success; 1 with a stderr diagnostic on failure.
 
-### fn `def handle_set(args: list[str]) -> int` (L539-558)
+### fn `def handle_set(args: list[str]) -> int` (L589-608)
 - @brief Execute `--set Path Value` (REQ-017, DES-014).
 - @details Parses Value into the schema type, validates the entire resulting configuration, and persists atomically; success is silent and any rejection leaves the stored file untouched.
 - @param args {list[str]} CLI argument tokens excluding program name.
 - @return {int} 0 on success; 1 with a stderr diagnostic on failure.
 
-### fn `def handle_unset(args: list[str]) -> int` (L559-577)
+### fn `def handle_unset(args: list[str]) -> int` (L609-627)
 - @brief Execute `--unset Path` (REQ-018, DES-014).
 - @details Restores the targeted parameter or section to schema defaults and persists atomically; success is silent.
 - @param args {list[str]} CLI argument tokens excluding program name.
 - @return {int} 0 on success; 1 with a stderr diagnostic on failure.
 
-### fn `def handle_print_raw(args: list[str]) -> int` (L578-598)
+### fn `def handle_print_raw(args: list[str]) -> int` (L628-648)
 - @brief Execute `--print-raw` (REQ-021).
 - @details Emits the exact bytes of the global configuration JSON file without parsing, reformatting, headings, or trailing text; no tree formatting is ever applied (on-disk debugging view).
 - @param args {list[str]} CLI argument tokens excluding program name.
@@ -252,24 +265,26 @@ message embeds schema-valid usage examples.
 |`validate_config`|fn|pub|135-187|def validate_config(payload: Any) -> None|
 |`atomic_write_json`|fn|pub|188-241|def atomic_write_json(path: Path, payload: dict[str, Any]...|
 |`ensure_bootstrapped`|fn|pub|242-262|def ensure_bootstrapped() -> None|
-|`load_strict`|fn|pub|263-287|def load_strict() -> dict[str, dict[str, str]]|
-|`resolve_segments`|fn|pub|288-334|def resolve_segments(path: str) -> tuple[str, ...]|
-|`get_value`|fn|pub|335-348|def get_value(payload: dict[str, Any], segments: tuple[st...|
-|`parse_value`|fn|pub|349-368|def parse_value(spec: ParamSpec, raw: str) -> str|
-|`set_value`|fn|pub|369-372|def set_value(|
-|`unset_value`|fn|pub|409-411|def unset_value(|
-|`operand_values`|fn|pub|435-439|def operand_values(|
-|`_usage_examples`|fn|priv|470-504|def _usage_examples(flag: str) -> str|
-|`_fail`|fn|priv|505-517|def _fail(error: ConfigError) -> int|
-|`handle_get`|fn|pub|518-538|def handle_get(args: list[str]) -> int|
-|`handle_set`|fn|pub|539-558|def handle_set(args: list[str]) -> int|
-|`handle_unset`|fn|pub|559-577|def handle_unset(args: list[str]) -> int|
-|`handle_print_raw`|fn|pub|578-598|def handle_print_raw(args: list[str]) -> int|
+|`_read_payload`|fn|priv|263-285|def _read_payload() -> Any|
+|`load_strict`|fn|pub|286-300|def load_strict() -> dict[str, dict[str, str]]|
+|`load_display`|fn|pub|301-337|def load_display() -> dict[str, dict[str, str]]|
+|`resolve_segments`|fn|pub|338-384|def resolve_segments(path: str) -> tuple[str, ...]|
+|`get_value`|fn|pub|385-398|def get_value(payload: dict[str, Any], segments: tuple[st...|
+|`parse_value`|fn|pub|399-418|def parse_value(spec: ParamSpec, raw: str) -> str|
+|`set_value`|fn|pub|419-422|def set_value(|
+|`unset_value`|fn|pub|459-461|def unset_value(|
+|`operand_values`|fn|pub|485-489|def operand_values(|
+|`_usage_examples`|fn|priv|520-554|def _usage_examples(flag: str) -> str|
+|`_fail`|fn|priv|555-567|def _fail(error: ConfigError) -> int|
+|`handle_get`|fn|pub|568-588|def handle_get(args: list[str]) -> int|
+|`handle_set`|fn|pub|589-608|def handle_set(args: list[str]) -> int|
+|`handle_unset`|fn|pub|609-627|def handle_unset(args: list[str]) -> int|
+|`handle_print_raw`|fn|pub|628-648|def handle_print_raw(args: list[str]) -> int|
 
 
 ---
 
-# config_render.py | Python | 474L | 18 symbols | 6 imports | 41 comments
+# config_render.py | Python | 484L | 18 symbols | 6 imports | 41 comments
 > Path: `src/githubtemplateastraluv/config_render.py`
 
 ## Imports
@@ -414,15 +429,15 @@ followed by its real descendants, without invented ancestors
 - @param error {config.ConfigError} Failure carrying the diagnostic.
 - @return {int} Always 1 (REQ-023).
 
-### fn `def handle_print(args: list[str]) -> int` (L438-457)
+### fn `def handle_print(args: list[str]) -> int` (L438-462)
 - @brief Execute `--print [Path]` (REQ-019).
-- @details Bootstraps storage, loads strictly, builds the display tree, and prints the rendering on stdout; failures print nothing on stdout and report one stderr diagnostic with exit 1.
+- @details Bootstraps storage, loads the schema-shaped display view via `config.load_display` so content persisted by an older schema version never blocks rendering (DES-010, TST-008), builds the display tree, and prints the rendering on stdout; genuine failures (absent, unreadable, malformed JSON, or non-object file; invalid operands or paths) print nothing on stdout and report one stderr diagnostic with exit 1 (REQ-023).
 - @param args {list[str]} CLI argument tokens excluding program name.
 - @return {int} 0 on success; 1 on failure.
 
-### fn `def handle_info(args: list[str]) -> int` (L458-475)
+### fn `def handle_info(args: list[str]) -> int` (L463-485)
 - @brief Execute `--info [Path]` (REQ-020).
-- @details Shares the renderer with `--print`; renders schema documentation with defaults and complete command examples.
+- @details Shares the renderer with `--print` and loads the same schema-shaped display view via `config.load_display` so content persisted by an older schema version never blocks rendering (DES-010, TST-008); renders schema documentation with defaults and complete command examples; genuine failures print nothing on stdout and report one stderr diagnostic with exit 1 (REQ-023).
 - @param args {list[str]} CLI argument tokens excluding program name.
 - @return {int} 0 on success; 1 on failure.
 
@@ -445,8 +460,8 @@ followed by its real descendants, without invented ancestors
 |`build_print_root`|fn|pub|361-363|def build_print_root(|
 |`build_info_root`|fn|pub|400-427|def build_info_root(payload: dict[str, Any], path: str | ...|
 |`_fail`|fn|priv|428-437|def _fail(error: config.ConfigError) -> int|
-|`handle_print`|fn|pub|438-457|def handle_print(args: list[str]) -> int|
-|`handle_info`|fn|pub|458-475|def handle_info(args: list[str]) -> int|
+|`handle_print`|fn|pub|438-462|def handle_print(args: list[str]) -> int|
+|`handle_info`|fn|pub|463-485|def handle_info(args: list[str]) -> int|
 
 
 ---

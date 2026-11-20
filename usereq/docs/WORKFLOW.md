@@ -213,8 +213,12 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
         [`src/githubtemplateastraluv/config.py`]
       - `config.ensure_bootstrapped(...)`
         [`src/githubtemplateastraluv/config.py`]
-      - `config.load_strict(...)`
+      - `config.load_display(...)`: schema-shaped display-view loader
+        tolerating stale-schema persisted content (drops unknown keys,
+        default-fills known missing keys)
         [`src/githubtemplateastraluv/config.py`]
+        - `config._read_payload(...)`: read and parse the configuration
+          JSON document [`src/githubtemplateastraluv/config.py`]
       - `config_render.build_print_root(...)`: build the display node
         tree [`src/githubtemplateastraluv/config_render.py`]
         - `config.resolve_segments(...)`
@@ -234,8 +238,12 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
         [`src/githubtemplateastraluv/config.py`]
       - `config.ensure_bootstrapped(...)`
         [`src/githubtemplateastraluv/config.py`]
-      - `config.load_strict(...)`
+      - `config.load_display(...)`: schema-shaped display-view loader
+        tolerating stale-schema persisted content (drops unknown keys,
+        default-fills known missing keys)
         [`src/githubtemplateastraluv/config.py`]
+        - `config._read_payload(...)`: read and parse the configuration
+          JSON document [`src/githubtemplateastraluv/config.py`]
       - `config_render.build_info_root(...)`: build the documentation
         node tree [`src/githubtemplateastraluv/config_render.py`]
         - `config.resolve_segments(...)`

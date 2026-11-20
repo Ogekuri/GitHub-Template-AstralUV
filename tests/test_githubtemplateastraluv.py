@@ -21,6 +21,10 @@
 #            filesystem ($HOME redirected into tmp_path), process spawn
 #            (subprocess.run mocked), wall clock (tolerance-bounded
 #            assertions on the 3600/86400 second deltas).
+#          - Stale-schema rendering reproducer: `--print` and `--info`
+#            render the schema-empty tree from a configuration file
+#            persisted by an older schema version (DES-010, TST-008;
+#            REQ-019, REQ-023).
 #          - Contract checks (TST-012..TST-015): action pins and job
 #            topology of `.github/workflows/release-pypi.yml` versus the
 #            Node24-or-later manifest (DES-015, CTN-010) plus the PyPI
@@ -48,6 +52,7 @@ import zipfile
 
 import pytest
 
+import githubtemplateastraluv.config_render as config_render
 import githubtemplateastraluv.core as core
 import githubtemplateastraluv.management as management
 import githubtemplateastraluv.version_check as version_check
@@ -1246,3 +1251,44 @@ def test_build_script_delegates_prebuild_cleanup_before_any_build_action():
         script_text = script_path.read_text(encoding="utf-8")
         assert "git clean" not in script_text
         assert "git reset --hard" not in script_text
+
+
+def test_print_and_info_render_schema_empty_tree_from_stale_schema_file(
+    isolated_home, capsys,
+):
+    """@brief Stale-schema reproducer: schema drift never blocks rendering.
+
+    @details UUTs: config_render.handle_print, config_render.handle_info
+            (L1 composed). expected_output = exit status 0 for both
+            commands, the schema-empty `Application_Configuration` golden
+            trees on stdout, empty stderr, and a byte-identical
+            configuration file; expected_exception = AssertionError.
+            A file persisted by an older schema version (the removed
+            Notifications section) is not schema-displayable (DES-010)
+            and MUST NOT abort the schema-driven renderers: the golden
+            schema-empty output is mandated (TST-008, REQ-019, REQ-023).
+    @param isolated_home {Path} Fixture redirecting `$HOME` into tmp_path.
+    @param capsys {pytest.CaptureFixture} Stdout/stderr capture.
+    @return {None}
+    """
+    configuration_file = (
+        isolated_home / ".config" / "githubtemplateastraluv" / "config.json"
+    )
+    configuration_file.parent.mkdir(parents=True, exist_ok=True)
+    stale_payload = (
+        '{"Notifications": {"new_version_color": "bright_green", '
+        '"error_color": "bright_red"}}\n'
+    )
+    configuration_file.write_text(stale_payload, encoding="utf-8")
+
+    assert config_render.handle_print(["--print"]) == 0
+    assert config_render.handle_info(["--info"]) == 0
+
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "Application_Configuration - Current configuration\n"
+        "Application_Configuration - Configuration schema and command"
+        " reference\n"
+    )
+    assert captured.err == ""
+    assert configuration_file.read_text(encoding="utf-8") == stale_payload

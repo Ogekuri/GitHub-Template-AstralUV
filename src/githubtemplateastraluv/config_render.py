@@ -438,16 +438,21 @@ def _fail(error: config.ConfigError) -> int:
 def handle_print(args: list[str]) -> int:
     """@brief Execute `--print [Path]` (REQ-019).
 
-    @details Bootstraps storage, loads strictly, builds the display tree,
-             and prints the rendering on stdout; failures print nothing
-             on stdout and report one stderr diagnostic with exit 1.
+    @details Bootstraps storage, loads the schema-shaped display view via
+             `config.load_display` so content persisted by an older
+             schema version never blocks rendering (DES-010, TST-008),
+             builds the display tree, and prints the rendering on stdout;
+             genuine failures (absent, unreadable, malformed JSON, or
+             non-object file; invalid operands or paths) print nothing
+             on stdout and report one stderr diagnostic with exit 1
+             (REQ-023).
     @param args {list[str]} CLI argument tokens excluding program name.
     @return {int} 0 on success; 1 on failure.
     """
     try:
         operands = config.operand_values(args, "--print", 0, 1)
         config.ensure_bootstrapped()
-        payload = config.load_strict()
+        payload = config.load_display()
         root = build_print_root(payload, operands[0] if operands else None)
     except config.ConfigError as error:
         return _fail(error)
@@ -458,15 +463,20 @@ def handle_print(args: list[str]) -> int:
 def handle_info(args: list[str]) -> int:
     """@brief Execute `--info [Path]` (REQ-020).
 
-    @details Shares the renderer with `--print`; renders schema
-             documentation with defaults and complete command examples.
+    @details Shares the renderer with `--print` and loads the same
+             schema-shaped display view via `config.load_display` so
+             content persisted by an older schema version never blocks
+             rendering (DES-010, TST-008); renders schema documentation
+             with defaults and complete command examples; genuine
+             failures print nothing on stdout and report one stderr
+             diagnostic with exit 1 (REQ-023).
     @param args {list[str]} CLI argument tokens excluding program name.
     @return {int} 0 on success; 1 on failure.
     """
     try:
         operands = config.operand_values(args, "--info", 0, 1)
         config.ensure_bootstrapped()
-        payload = config.load_strict()
+        payload = config.load_display()
         root = build_info_root(payload, operands[0] if operands else None)
     except config.ConfigError as error:
         return _fail(error)
