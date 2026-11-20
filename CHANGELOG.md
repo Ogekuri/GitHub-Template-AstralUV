@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.1](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.1) - 2026-11-20
+## [0.0.2](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.2) - 2026-11-20
 ### 🏗️  Implementations
 - implement CLI app, version check, tests, and runtime docs [useReq] *(core)*
   Implement the SRS end-to-end from the extracted skeleton:
@@ -14,6 +14,10 @@
   model and REFERENCES.md refreshed.
 
 ### 🐛  Bug Fixes
+- replace invalid PyPI topic classifier [useReq] *(pyproject)*
+  PyPI rejected the distribution upload with 400 Bad Request: 'Topic :: Software Development :: Configuration Management' is not a valid classifier. Replace it with the valid 'Topic :: Utilities' classifier so OIDC trusted publishing (DES-016, DES-017) succeeds.
+  Add the HDT contract test test_pyproject_classifiers_are_pypi_accepted asserting every project.classifiers entry stays PyPI-valid, and derive the help/report version oracles from the single version source core.__version__ (restores TST-001/TST-002 after the 0.0.1 version bump).
+  Tests: uv run --frozen pytest -> 43 passed, 0 failed.
 - Fix clean.sh script.
 
 ### 🚜  Changes
@@ -80,6 +84,6 @@
 
 # History
 
-- \[0.0.1\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.1
+- \[0.0.2\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.2
 
-[0.0.1]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.1
+[0.0.2]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.2
