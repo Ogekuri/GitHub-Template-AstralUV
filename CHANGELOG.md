@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.5](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.5) - 2026-11-20
+## [0.0.6](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.6) - 2026-11-20
 ### 🏗️  Implementations
 - implement CLI app, version check, tests, and runtime docs [useReq] *(core)*
   Implement the SRS end-to-end from the extracted skeleton:
@@ -14,6 +14,9 @@
   model and REFERENCES.md refreshed.
 
 ### 🐛  Bug Fixes
+- rebuild stale 0.0.4 release artifacts to 0.0.5 [useReq] *(dist)*
+  pyproject.toml declared version 0.0.5 while the git-tracked dist/ artifacts still embedded Version 0.0.4; a 0.0.5 tag would have published the stale pair verbatim via OIDC trusted publishing (DES-017, DES-042). Regenerated the sdist and wheel via scripts/build.sh (clean startup state, stale prune, frozen build). Full pytest suite passes (45 passed); pre-release check exits 0 with a clean tree.
+- Update version number. *(config)*
 - rebuild 0.0.4 release artifacts and align uv.lock [useReq] *(dist)*
   The v0.0.3 and v0.0.4 tags carried the stale 0.0.2 dist/ pair, so the
   release workflow published a duplicate 0.0.2 that PyPI rejected and the
@@ -52,6 +55,14 @@
 - Fix clean.sh script.
 
 ### 🚜  Changes
+- Update .galias.conf file. *(config)*
+- Upgrade uv.lock file. *(config)*
+- BREAKING CHANGE: upgrade installed tool via uv tool upgrade [useReq] *(cli)*
+  REQ-003: non-forced --upgrade runs 'uv tool upgrade
+  githubtemplateastraluv', replacing an already-installed tool.
+  REQ-032: develop variant runs 'uv tool install --reinstall --from
+  git+...' because 'uv tool upgrade' rejects --from.
+  REQ-037 relaxed: forcing triple stays exclusive to --force variants.; REQ-034 unchanged: --dev alias stays removed.; Tests pin the literal REQ-003/REQ-032 argv strings (TST-003/TST-014).
 - BREAKING CHANGE: remove configurable notification colors, embed hardcoded color JSON [useReq] *(config)*
   REQ-024/REQ-025 removed: the Notifications section leaves the configuration schema and every canonical path is now rejected (REQ-022). REQ-026 rewritten; REQ-040/REQ-041 added: all colors live in the embedded internal JSON COLOR_CONFIG_JSON of the new src/githubtemplateastraluv/colors.py (bright_green/bright_red assignments plus the 7-token ANSI palette). version_check now consumes colors.notification_colors; config.load_tolerant and config.notification_colors are removed. TST-008, TST-010, TST-011 updated for the schema-empty configuration; README rewritten accordingly. Verification: uv run pytest -> 44 passed; req-static-check clean; schema-empty CLI smoke test (print/get/print-raw) verified.
 - document all implemented commands in inline help and docs [useReq] *(help)*
@@ -119,6 +130,6 @@
 
 # History
 
-- \[0.0.5\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.5
+- \[0.0.6\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.6
 
-[0.0.5]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.5
+[0.0.6]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.6

@@ -4,7 +4,7 @@
 > channels may change at any time without notice. Do not rely on it for
 > production workloads.
 
-# githubtemplateastraluv / templateastraluv (0.0.5)
+# githubtemplateastraluv / templateastraluv (0.0.6)
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.11+">
@@ -136,7 +136,7 @@ The full help screen (printed by `--help` or by running the tool with no
 arguments):
 
 ```text
-Usage: githubtemplateastraluv [command] [options] (0.0.5)
+Usage: githubtemplateastraluv [command] [options] (0.0.6)
 
 Management Commands:
   --upgrade   - Reinstall githubtemplateastraluv on Linux; print manual command elsewhere.
