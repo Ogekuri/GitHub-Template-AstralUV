@@ -11,16 +11,16 @@ import sys
 ## @brief Canonical program name used across help text and uv commands.
 PROGRAM_NAME = "githubtemplateastraluv"
 
-## @brief Exact `uv tool install` argv executed on Linux by
+## @brief Exact `uv tool upgrade` argv executed on Linux by
 #        `--upgrade` without `--force` (REQ-003).
 # @details `' '.join(UPGRADE_COMMAND)` equals the literal string mandated
 #          by REQ-003 and is printed verbatim as the manual command on
 #          non-Linux platforms (REQ-004). Source resolves from PyPI; the
-#          standard process applies no forcing option (REQ-037).
+#          standard upgrade applies no forcing option (REQ-037).
 UPGRADE_COMMAND = [
     "uv",
     "tool",
-    "install",
+    "upgrade",
     "githubtemplateastraluv",
 ]
 
@@ -41,18 +41,21 @@ UPGRADE_FORCE_COMMAND = [
     "--refresh",
 ]
 
-## @brief Exact `uv tool install` argv executed on Linux by
+## @brief Exact upgrading `uv tool install` argv executed on Linux by
 #        `--upgrade --develop` without `--force` (REQ-032).
 # @details `' '.join(UPGRADE_DEVELOP_COMMAND)` equals the literal string
 #          mandated by REQ-032 and is printed verbatim as the manual
 #          command on non-Linux platforms (REQ-033). Source resolves from
-#          the GitHub repository (latest tagged release, any branch); the
-#          standard process applies no forcing option (REQ-037).
+#          the GitHub repository (latest tagged release, any branch);
+#          `--reinstall` replaces the already-installed tool because
+#          `uv tool upgrade` rejects `--from`; no `--force` applies
+#          (REQ-037).
 UPGRADE_DEVELOP_COMMAND = [
     "uv",
     "tool",
     "install",
     "githubtemplateastraluv",
+    "--reinstall",
     "--from",
     "git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git",
 ]
@@ -110,14 +113,15 @@ def _management_entry(flag: str, description: str) -> str:
 
 
 def _upgrade_command(develop: bool, force: bool) -> list[str]:
-    """@brief Select the exact `uv tool install` argv for the variant.
+    """@brief Select the exact upgrade argv for the requested variant.
 
     @details Mapping mandated by the SRS: `(False, False)` ->
              UPGRADE_COMMAND (REQ-003), `(False, True)` ->
              UPGRADE_FORCE_COMMAND (REQ-035), `(True, False)` ->
              UPGRADE_DEVELOP_COMMAND (REQ-032), `(True, True)` ->
              UPGRADE_DEVELOP_FORCE_COMMAND (REQ-036). Forcing options are
-             applied only when `force` is True (REQ-037).
+             applied only when `force` is True; non-forced variants
+             upgrade without `--force` (REQ-037).
     @param develop {bool} True selects the GitHub development source.
     @param force {bool} True selects the forced reinstallation variant.
     @return {list[str]} Exact argv of the requested upgrade variant.
@@ -221,14 +225,14 @@ def print_help(version: str) -> int:
 
 
 def cmd_upgrade(develop: bool = False, force: bool = False) -> int:
-    """@brief Reinstall the tool via `uv tool install` on Linux.
+    """@brief Upgrade the tool via `uv` on Linux.
 
     @details On Linux the exact argv selected by `develop` and `force`
              executes through subprocess and its exit code propagates:
-             UPGRADE_COMMAND for the standard PyPI process (REQ-003),
+             UPGRADE_COMMAND for the PyPI upgrade (REQ-003),
              UPGRADE_FORCE_COMMAND for the forced PyPI reinstallation
-             (REQ-035), UPGRADE_DEVELOP_COMMAND for the standard GitHub
-             development source (REQ-032), and
+             (REQ-035), UPGRADE_DEVELOP_COMMAND for the GitHub
+             development reinstall (REQ-032), and
              UPGRADE_DEVELOP_FORCE_COMMAND for the forced development
              reinstallation (REQ-036); forcing options apply only when
              `force` is True (REQ-037). On any other OS no process spawns;

@@ -254,8 +254,10 @@ def test_ver_report_prints_aligned_rows_despite_fresh_cache(
 def test_upgrade_on_linux_executes_exact_uv_install(isolated_home):
     """@brief TST-003: `--upgrade` spawns the exact REQ-003 argv on Linux.
 
-    @details expected_output = exit code 0 and one subprocess.run call with
-            UPGRADE_COMMAND; expected_exception = none.
+    @details expected_output = exit code 0, one subprocess.run call with
+            UPGRADE_COMMAND, and UPGRADE_COMMAND equal to the literal
+            REQ-003 string `uv tool upgrade githubtemplateastraluv`;
+            expected_exception = none.
     """
     with mock.patch.object(version_check, "run_version_check"):
         with mock.patch.object(management, "is_linux", return_value=True):
@@ -266,14 +268,22 @@ def test_upgrade_on_linux_executes_exact_uv_install(isolated_home):
             ) as run_mock:
                 exit_code = core.main(["--upgrade"])
     assert exit_code == 0
+    assert management.UPGRADE_COMMAND == [
+        "uv",
+        "tool",
+        "upgrade",
+        "githubtemplateastraluv",
+    ]
     run_mock.assert_called_once_with(management.UPGRADE_COMMAND, check=False)
 
 
 def test_upgrade_develop_on_linux_executes_exact_uv_install(isolated_home):
     """@brief TST-014 (REQ-032): `--upgrade --develop` spawns exact argv.
 
-    @details expected_output = exit code 0 and one subprocess.run call with
-            UPGRADE_DEVELOP_COMMAND; expected_exception = none.
+    @details expected_output = exit code 0, one subprocess.run call with
+            UPGRADE_DEVELOP_COMMAND, and UPGRADE_DEVELOP_COMMAND equal to
+            the literal REQ-032 reinstall-from-git string;
+            expected_exception = none.
     """
     with mock.patch.object(version_check, "run_version_check"):
         with mock.patch.object(management, "is_linux", return_value=True):
@@ -284,6 +294,15 @@ def test_upgrade_develop_on_linux_executes_exact_uv_install(isolated_home):
             ) as run_mock:
                 exit_code = core.main(["--upgrade", "--develop"])
     assert exit_code == 0
+    assert management.UPGRADE_DEVELOP_COMMAND == [
+        "uv",
+        "tool",
+        "install",
+        "githubtemplateastraluv",
+        "--reinstall",
+        "--from",
+        "git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git",
+    ]
     run_mock.assert_called_once_with(
         management.UPGRADE_DEVELOP_COMMAND, check=False
     )

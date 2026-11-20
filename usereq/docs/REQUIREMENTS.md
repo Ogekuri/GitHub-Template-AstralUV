@@ -196,7 +196,7 @@ Options:
 ```
 
 - **REQ-002**: MUST print for `--ver` and `--version` the three-row version report with aligned version columns, bypassing the idle-time gate and cache file.
-- **REQ-003**: MUST execute `uv tool install githubtemplateastraluv` when `--upgrade` runs on Linux without `--force`, resolving the package from PyPI.
+- **REQ-003**: MUST execute `uv tool upgrade githubtemplateastraluv` when `--upgrade` runs on Linux without `--force`, upgrading the installed tool from PyPI.
 - **REQ-004**: MUST NOT execute any upgrade command on non-Linux operating systems; MUST print a warning and the manual command of REQ-003 or REQ-035 matching the requested variant instead.
 - **REQ-005**: MUST execute `uv tool uninstall githubtemplateastraluv` when `--uninstall` runs on Linux.
 - **REQ-006**: MUST NOT execute any uninstall command on non-Linux operating systems; MUST print a warning and the manual command of REQ-005 instead.
@@ -223,12 +223,12 @@ Options:
 - **REQ-029**: MUST fill the `Latest @ GitHub` report row with the latest release tag from `https://api.github.com/repos/Ogekuri/GitHub-Template-AstralUV/releases/latest`, stripped of its `v` prefix.
 - **REQ-030**: MUST print `unknown (<reason>)` in place of the version for a failed report source, `<reason>` naming the encountered error, plus a bright red note naming that source.
 - **REQ-031**: MUST update the version-check cache from the report PyPI outcome only: 3600-second idle-delay on success, 86400-second idle-delay on failure.
-- **REQ-032**: MUST execute `uv tool install githubtemplateastraluv --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` when `--upgrade --develop` runs on Linux without `--force`.
+- **REQ-032**: MUST execute `uv tool install githubtemplateastraluv --reinstall --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` when `--upgrade --develop` runs on Linux without `--force`.
 - **REQ-033**: MUST NOT execute any develop-upgrade command on non-Linux operating systems; MUST print a warning and the manual command of REQ-032 or REQ-036 matching the requested variant instead.
 - **REQ-034**: MUST interpret `--develop` exclusively as a source modifier of `--upgrade`, leaving every other argument combination to the existing dispatch behavior.
 - **REQ-035**: MUST execute `uv tool install githubtemplateastraluv --force --reinstall --refresh` when `--upgrade --force` runs on Linux, forcing full re-download and reinstallation from PyPI.
 - **REQ-036**: MUST execute `uv tool install githubtemplateastraluv --force --reinstall --refresh --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` when `--upgrade --develop --force` runs on Linux.
-- **REQ-037**: MUST apply the forcing options `--force --reinstall --refresh` to the upgrade `uv tool install` command only when `--force` accompanies `--upgrade`.
+- **REQ-037**: MUST apply the full forcing options `--force --reinstall --refresh` only to the `--force` variants of `--upgrade`; non-forced variants MUST execute their upgrading argv without `--force`.
 - **REQ-038**: MUST interpret `--force` exclusively as an auxiliary modifier of `--upgrade`, leaving every other argument combination to the existing dispatch behavior.
 - **REQ-039**: MUST list every implemented command flag in the `--help` screen under Management Commands or Configuration Commands, each with a one-line English description.
 - **REQ-040**: MUST hold every notification color name and its ANSI SGR prefix in one embedded JSON document inside the dedicated module `src/githubtemplateastraluv/colors.py`.

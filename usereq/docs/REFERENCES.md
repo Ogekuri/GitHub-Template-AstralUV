@@ -492,7 +492,7 @@ from githubtemplateastraluv import (
 
 ---
 
-# management.py | Python | 274L | 13 symbols | 2 imports | 47 comments
+# management.py | Python | 278L | 13 symbols | 2 imports | 49 comments
 > Path: `src/githubtemplateastraluv/management.py`
 
 ## Imports
@@ -507,53 +507,53 @@ import sys
 - @brief Canonical program name used across help text and uv commands.
 - var `UPGRADE_COMMAND = [` (L20)
 - var `UPGRADE_FORCE_COMMAND = [` (L34)
-- var `UPGRADE_DEVELOP_COMMAND = [` (L51)
-- var `UPGRADE_DEVELOP_FORCE_COMMAND = [` (L67)
-- var `UNINSTALL_COMMAND = ["uv", "tool", "uninstall", "githubtemplateastraluv"]` (L83)
-### fn `def is_linux() -> bool` (L89-100)
+- var `UPGRADE_DEVELOP_COMMAND = [` (L53)
+- var `UPGRADE_DEVELOP_FORCE_COMMAND = [` (L70)
+- var `UNINSTALL_COMMAND = ["uv", "tool", "uninstall", "githubtemplateastraluv"]` (L86)
+### fn `def is_linux() -> bool` (L92-103)
 - @brief Flag column width keeping management help lines aligned.
 - @brief Report whether the current operating system is Linux.
 - @details `sys.platform` prefix check (covers `linux` and historical `linux2` values); all other platforms take the manual-command branch (A-09).
 - @return {bool} True on Linux, False otherwise.
 - @satisfies A-09 CTN-009
 
-### fn `def _management_entry(flag: str, description: str) -> str` `priv` (L101-111)
+### fn `def _management_entry(flag: str, description: str) -> str` `priv` (L104-114)
 - @brief Render one aligned help-screen entry line.
 - @param flag {str} Command or option flag (e.g. `--upgrade`).
 - @param description {str} Description text placed after the dash.
 - @return {str} Line matching the REQ-001 template alignment.
 - @satisfies REQ-001 REQ-039
 
-### fn `def _upgrade_command(develop: bool, force: bool) -> list[str]` `priv` (L112-133)
-- @brief Select the exact `uv tool install` argv for the variant.
-- @details Mapping mandated by the SRS: `(False, False)` -> UPGRADE_COMMAND (REQ-003), `(False, True)` -> UPGRADE_FORCE_COMMAND (REQ-035), `(True, False)` -> UPGRADE_DEVELOP_COMMAND (REQ-032), `(True, True)` -> UPGRADE_DEVELOP_FORCE_COMMAND (REQ-036). Forcing options are applied only when `force` is True (REQ-037).
+### fn `def _upgrade_command(develop: bool, force: bool) -> list[str]` `priv` (L115-137)
+- @brief Select the exact upgrade argv for the requested variant.
+- @details Mapping mandated by the SRS: `(False, False)` -> UPGRADE_COMMAND (REQ-003), `(False, True)` -> UPGRADE_FORCE_COMMAND (REQ-035), `(True, False)` -> UPGRADE_DEVELOP_COMMAND (REQ-032), `(True, True)` -> UPGRADE_DEVELOP_FORCE_COMMAND (REQ-036). Forcing options are applied only when `force` is True; non-forced variants upgrade without `--force` (REQ-037).
 - @param develop {bool} True selects the GitHub development source.
 - @param force {bool} True selects the forced reinstallation variant.
 - @return {list[str]} Exact argv of the requested upgrade variant.
 - @satisfies REQ-003 REQ-032 REQ-035 REQ-036 REQ-037
 
-### fn `def build_help_text(version: str) -> str` (L134-211)
+### fn `def build_help_text(version: str) -> str` (L138-215)
 - @brief Render the full help screen text (REQ-001 template).
 - @details The literal `(x.y.z)` slot of the template receives the installed version (A-01); the `Management Commands:` section lists every management command, the `Configuration Commands:` section lists every configuration command (REQ-039), and the `Options:` section documents the `--develop` and `--force` modifiers of `--upgrade`.
 - @param version {str} Installed version in `x.y.z` format.
 - @return {str} Help text without trailing newline; the caller prints it.
 - @satisfies REQ-001 REQ-039 A-01 A-02
 
-### fn `def print_help(version: str) -> int` (L212-222)
+### fn `def print_help(version: str) -> int` (L216-226)
 - @brief Print the full help screen to stdout.
 - @param version {str} Installed version in `x.y.z` format.
 - @return {int} Always 0.
 - @satisfies REQ-001 PRJ-005
 
-### fn `def cmd_upgrade(develop: bool = False, force: bool = False) -> int` (L223-257)
-- @brief Reinstall the tool via `uv tool install` on Linux.
-- @details On Linux the exact argv selected by `develop` and `force` executes through subprocess and its exit code propagates: UPGRADE_COMMAND for the standard PyPI process (REQ-003), UPGRADE_FORCE_COMMAND for the forced PyPI reinstallation (REQ-035), UPGRADE_DEVELOP_COMMAND for the standard GitHub development source (REQ-032), and UPGRADE_DEVELOP_FORCE_COMMAND for the forced development reinstallation (REQ-036); forcing options apply only when `force` is True (REQ-037). On any other OS no process spawns; a warning plus the matching manual command print instead (REQ-004, REQ-033).
+### fn `def cmd_upgrade(develop: bool = False, force: bool = False) -> int` (L227-261)
+- @brief Upgrade the tool via `uv` on Linux.
+- @details On Linux the exact argv selected by `develop` and `force` executes through subprocess and its exit code propagates: UPGRADE_COMMAND for the PyPI upgrade (REQ-003), UPGRADE_FORCE_COMMAND for the forced PyPI reinstallation (REQ-035), UPGRADE_DEVELOP_COMMAND for the GitHub development reinstall (REQ-032), and UPGRADE_DEVELOP_FORCE_COMMAND for the forced development reinstallation (REQ-036); forcing options apply only when `force` is True (REQ-037). On any other OS no process spawns; a warning plus the matching manual command print instead (REQ-004, REQ-033).
 - @param develop {bool} True selects the GitHub development source (`--upgrade --develop`); False selects the PyPI source (default).
 - @param force {bool} True selects the forced full re-download and reinstallation variant (`--upgrade --force`, REQ-037); False executes the standard process without any forcing option.
 - @return {int} 0 on manual fallback or successful subprocess; otherwise the `uv` process exit code.
 - @satisfies REQ-003 REQ-004 REQ-032 REQ-033 REQ-035 REQ-036 REQ-037 CTN-009
 
-### fn `def cmd_uninstall() -> int` (L258-275)
+### fn `def cmd_uninstall() -> int` (L262-279)
 - @brief Uninstall the tool via `uv tool uninstall` on Linux.
 - @details On Linux the exact UNINSTALL_COMMAND argv executes through subprocess and its exit code propagates. On any other OS no process spawns; a warning plus the manual command print instead (REQ-006).
 - @return {int} 0 on manual fallback or successful subprocess; otherwise the `uv` process exit code.
@@ -565,16 +565,16 @@ import sys
 |`PROGRAM_NAME`|var|pub|12||
 |`UPGRADE_COMMAND`|var|pub|20||
 |`UPGRADE_FORCE_COMMAND`|var|pub|34||
-|`UPGRADE_DEVELOP_COMMAND`|var|pub|51||
-|`UPGRADE_DEVELOP_FORCE_COMMAND`|var|pub|67||
-|`UNINSTALL_COMMAND`|var|pub|83||
-|`is_linux`|fn|pub|89-100|def is_linux() -> bool|
-|`_management_entry`|fn|priv|101-111|def _management_entry(flag: str, description: str) -> str|
-|`_upgrade_command`|fn|priv|112-133|def _upgrade_command(develop: bool, force: bool) -> list[...|
-|`build_help_text`|fn|pub|134-211|def build_help_text(version: str) -> str|
-|`print_help`|fn|pub|212-222|def print_help(version: str) -> int|
-|`cmd_upgrade`|fn|pub|223-257|def cmd_upgrade(develop: bool = False, force: bool = Fals...|
-|`cmd_uninstall`|fn|pub|258-275|def cmd_uninstall() -> int|
+|`UPGRADE_DEVELOP_COMMAND`|var|pub|53||
+|`UPGRADE_DEVELOP_FORCE_COMMAND`|var|pub|70||
+|`UNINSTALL_COMMAND`|var|pub|86||
+|`is_linux`|fn|pub|92-103|def is_linux() -> bool|
+|`_management_entry`|fn|priv|104-114|def _management_entry(flag: str, description: str) -> str|
+|`_upgrade_command`|fn|priv|115-137|def _upgrade_command(develop: bool, force: bool) -> list[...|
+|`build_help_text`|fn|pub|138-215|def build_help_text(version: str) -> str|
+|`print_help`|fn|pub|216-226|def print_help(version: str) -> int|
+|`cmd_upgrade`|fn|pub|227-261|def cmd_upgrade(develop: bool = False, force: bool = Fals...|
+|`cmd_uninstall`|fn|pub|262-279|def cmd_uninstall() -> int|
 
 
 ---
