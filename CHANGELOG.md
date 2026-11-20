@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.3](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.3) - 2026-11-20
+## [0.0.4](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.4) - 2026-11-20
 ### 🏗️  Implementations
 - implement CLI app, version check, tests, and runtime docs [useReq] *(core)*
   Implement the SRS end-to-end from the extracted skeleton:
@@ -14,6 +14,7 @@
   model and REFERENCES.md refreshed.
 
 ### 🐛  Bug Fixes
+- Update uv.lock file.
 - tolerate stale-schema files in --print/--info rendering [useReq] *(config)*
   A configuration file persisted by the pre-55fd527 schema (Notifications
   section) aborted --print and --info with a sections-mismatch error
@@ -111,6 +112,6 @@
 
 # History
 
-- \[0.0.3\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.3
+- \[0.0.4\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.4
 
-[0.0.3]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.3
+[0.0.4]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.4
