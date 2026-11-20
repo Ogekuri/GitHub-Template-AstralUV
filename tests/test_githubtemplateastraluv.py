@@ -36,6 +36,7 @@ import re
 import shutil
 import subprocess
 import time
+import tomllib
 import urllib.error
 from unittest import mock
 
@@ -58,9 +59,11 @@ EXPECTED_GITHUB_ENDPOINT = (
 )
 
 ## @brief Independent byte-exact help-screen oracle for TST-001 (REQ-001
-#         template with version 0.0.0 substituted into the `(x.y.z)` slot).
+#         template with the current version substituted into the `(x.y.z)`
+#         slot; single version source `core.__version__`).
 EXPECTED_HELP_TEXT = (
-    "Usage: githubtemplateastraluv [command] [options] (0.0.0)\n"
+    "Usage: githubtemplateastraluv [command] [options] "
+    f"({core.__version__})\n"
     "\n"
     "Management Commands:\n"
     "  --upgrade   - Reinstall githubtemplateastraluv on Linux; print manual"
@@ -221,7 +224,7 @@ def test_ver_report_prints_aligned_rows_despite_fresh_cache(
     out = capsys.readouterr().out
     assert exit_code == 0
     assert out == (
-        "Current Installed : 0.0.0\n"
+        f"Current Installed : {core.__version__}\n"
         "Latest @ PyPI     : 9.9.9\n"
         "Latest @ GitHub   : 8.8.8\n"
     )
@@ -909,6 +912,45 @@ def test_release_workflow_runs_no_build_or_release_checks():
     assert "Set up uv" not in workflow_text
     assert "setup-python" not in workflow_text
     assert "setup-uv" not in workflow_text
+
+
+## @brief Packaging metadata file exercised by the PyPI classifier
+#         acceptance contract; `project.classifiers` is core metadata
+#         validated by the PyPI upload endpoint (DES-016, DES-017).
+PYPROJECT_PATH = Path(__file__).resolve().parents[1] / "pyproject.toml"
+
+## @brief Classifier literal rejected by the PyPI upload endpoint with
+#         `400 Bad Request: is not a valid classifier` (defect evidence).
+PYPI_REJECTED_CLASSIFIER = (
+    "Topic :: Software Development :: Configuration Management"
+)
+
+## @brief Golden allowlist of PyPI-valid trove classifiers; every
+#         `project.classifiers` entry MUST be a member in this order.
+PYPI_VALID_CLASSIFIERS = (
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Utilities",
+)
+
+
+def test_pyproject_classifiers_are_pypi_accepted():
+    """@brief Packaging contract: every classifier uploads to PyPI.
+
+    @details expected_output = none; expected_exception = AssertionError
+            when the tracked `pyproject.toml` declares the PyPI-rejected
+            classifier literal or any classifier outside the PyPI-valid
+            golden allowlist. Parses the tracked file read-only (same
+            contract-fixture strategy as the workflow tests above);
+            complexity: O(C) over declared classifiers C.
+    """
+    metadata = tomllib.loads(PYPROJECT_PATH.read_text(encoding="utf-8"))
+    classifiers = tuple(metadata["project"]["classifiers"])
+    assert PYPI_REJECTED_CLASSIFIER not in classifiers
+    assert classifiers == PYPI_VALID_CLASSIFIERS
 
 
 ## @brief Repository tooling scripts exercised by TST-022 and TST-023;
