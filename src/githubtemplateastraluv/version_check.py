@@ -6,11 +6,10 @@
 #          gated availability check, throttled through an idle-time JSON
 #          cache under `$HOME`, and renders the aligned three-row report
 #          (`--ver`) fetching both PyPI and the GitHub releases API.
-#          Notifications use the colors configured in the configuration
-#          subsystem (REQ-026), falling back to bright green / bright red
-#          schema defaults when configuration cannot be loaded. Success
-#          refreshes the cache with a 3600 s idle-delay; any failure backs
-#          off 86400 s.
+#          Notifications use the hardcoded ANSI colors of the embedded
+#          internal color JSON (`colors.notification_colors`, REQ-026,
+#          REQ-040). Success refreshes the cache with a 3600 s
+#          idle-delay; any failure backs off 86400 s.
 import json
 import os
 import time
@@ -19,7 +18,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from githubtemplateastraluv import config
+from githubtemplateastraluv import colors
 
 ## @brief PyPI JSON API endpoint returning latest published version
 #        metadata (REQ-009, REQ-028).
@@ -44,9 +43,9 @@ _CACHE_RELATIVE_PATH = (
     "check_version_idle-time.json",
 )
 ## @brief ANSI SGR reset suffix closing colored notifications.
-# @details Notification prefix colors are configured through the
-#          configuration subsystem (config.notification_colors, REQ-026);
-#          only the reset suffix stays local.
+# @details Notification prefix colors come from the hardcoded embedded
+#          color JSON (`colors.notification_colors`, REQ-026); only the
+#          reset suffix stays local.
 _ANSI_RESET = "\033[0m"
 ## @brief Report row label for the installed version (REQ-027).
 _REPORT_LABEL_INSTALLED = "Current Installed"
@@ -261,7 +260,7 @@ def _report_failure(
 ) -> None:
     """@brief Emit the failure note and write the 86400 s cache.
 
-    @details The note renders with the configured error color (REQ-026).
+    @details The note renders with the hardcoded error color (REQ-026).
     @param check_epoch {float} Epoch seconds of the failed attempt.
     @param error {BaseException} Encountered error rendered in the note.
     @param color {str} ANSI SGR prefix for the failure note.
@@ -277,21 +276,21 @@ def run_version_check(installed_version: str, force: bool = False) -> None:
 
     @details Flow: cache read -> gate evaluation (skipped when `force`) ->
              PyPI JSON fetch -> version compare -> notify -> cache write.
-             Notification colors come from the configuration subsystem
-             with schema-default fallback (REQ-026). Success always
-             refreshes the cache with the 3600 s idle-delay (REQ-013,
-             A-04); fetch or parse failures print the configured error
-             note and back off 86400 s (REQ-014, REQ-015, A-05). The call
-             always returns normally; callers continue parsing (A-06).
+             Notification colors come from the hardcoded embedded color
+             JSON (REQ-026, REQ-040). Success always refreshes the cache
+             with the 3600 s idle-delay (REQ-013, A-04); fetch or parse
+             failures print the hardcoded error note and back off 86400 s
+             (REQ-014, REQ-015, A-05). The call always returns normally;
+             callers continue parsing (A-06).
     @param installed_version {str} Installed version in `x.y.z` format.
     @param force {bool} True bypasses the idle-time gate (REQ-002,
            REQ-007).
     @return {None}
     @satisfies REQ-007 REQ-008 REQ-009 REQ-010 REQ-011 REQ-012 REQ-013
-               REQ-014 REQ-015 REQ-024 REQ-025 REQ-026
+               REQ-014 REQ-015 REQ-026
     """
     check_epoch = time.time()
-    colors = config.notification_colors()
+    palette = colors.notification_colors()
     cache = _read_cache(_cache_path())
     if not force and not _gate_allows_request(cache, check_epoch):
         return
@@ -305,11 +304,11 @@ def run_version_check(installed_version: str, force: bool = False) -> None:
         OSError,
         ValueError,
     ) as error:
-        _report_failure(check_epoch, error, colors["error_color"])
+        _report_failure(check_epoch, error, palette["error_color"])
         return
     if available > installed:
         _print_colored(
-            colors["new_version_color"],
+            palette["new_version_color"],
             f"New version available: {latest_version} "
             f"(installed version: {installed_version})",
         )
@@ -321,7 +320,7 @@ def run_version_report(installed_version: str) -> None:
 
     @details Flow: fetch PyPI -> fetch GitHub -> emit the three aligned
              rows. Each failed fetch emits one bright red note naming the
-             failed source with the configured error color (REQ-030) and
+             failed source with the hardcoded error color (REQ-030) and
              its row prints `unknown (<reason>)`, carrying the actually
              encountered error, in place of the version (REQ-030). Rows
              print in order: installed, PyPI, GitHub; version columns
@@ -336,7 +335,7 @@ def run_version_report(installed_version: str) -> None:
     @return {None}
     @satisfies REQ-002 REQ-027 REQ-028 REQ-029 REQ-030 REQ-031 REQ-026
     """
-    colors = config.notification_colors()
+    palette = colors.notification_colors()
     check_epoch = time.time()
     pypi_version: str | None = None
     github_version: str | None = None
@@ -352,7 +351,7 @@ def run_version_report(installed_version: str) -> None:
     ) as error:
         pypi_reason = str(error)
         _print_colored(
-            colors["error_color"], f"Version check failed @ PyPI: {error}"
+            palette["error_color"], f"Version check failed @ PyPI: {error}"
         )
     try:
         github_version = _fetch_latest_github_version()
@@ -364,7 +363,7 @@ def run_version_report(installed_version: str) -> None:
     ) as error:
         github_reason = str(error)
         _print_colored(
-            colors["error_color"], f"Version check failed @ GitHub: {error}"
+            palette["error_color"], f"Version check failed @ GitHub: {error}"
         )
     print(_format_report_row(_REPORT_LABEL_INSTALLED, installed_version))
     print(

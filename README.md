@@ -44,7 +44,7 @@ notification-color subsystem with validated, atomic persistence.
 - **Automatic new-version check** before every run, throttled by an idle-time cache so no redundant network calls are made.
 - **Self-upgrade** from PyPI (`--upgrade`), forced full re-download (`--force`), or the latest GitHub tagged release (`--develop`).
 - **One-command removal** (`--uninstall`) — on non-Linux systems the exact manual command is printed instead.
-- **Colored console notifications** (bright green for availability, bright red for errors) with user-configurable colors.
+- **Colored console notifications** (bright green for availability, bright red for errors), hardcoded in the embedded internal color JSON of `src/githubtemplateastraluv/colors.py`.
 - **Configuration CLI** (`--get`, `--set`, `--unset`, `--print`, `--info`, `--print-raw`) with schema validation and atomic persistence.
 - **Release automation**: a GitHub release for every version tag and OIDC Trusted Publishing to PyPI for `master` tags.
 
@@ -210,7 +210,8 @@ preserved if any step fails).
 ### Configuration commands
 
 Configuration paths are case-sensitive, colon-separated canonical tokens
-(`Notifications`, `Notifications:new_version_color`, ...).
+(`Section`, `Section:Parameter`); the schema currently defines no sections,
+so every canonical path is rejected.
 
 | Command | Behavior |
 | --- | --- |
@@ -224,31 +225,32 @@ Configuration paths are case-sensitive, colon-separated canonical tokens
 Examples:
 
 ```bash
-githubtemplateastraluv --get Notifications:new_version_color
-githubtemplateastraluv --set Notifications:new_version_color bright_cyan
-githubtemplateastraluv --set Notifications '{"new_version_color":"bright_green","error_color":"bright_red"}'
-githubtemplateastraluv --unset Notifications:new_version_color
-githubtemplateastraluv --unset Notifications
 githubtemplateastraluv --print
 githubtemplateastraluv --info
 githubtemplateastraluv --print-raw
+
+# The schema currently defines no sections: every canonical path is
+# rejected with exit status 1 and a stderr diagnostic.
+githubtemplateastraluv --get Notifications:new_version_color
 ```
 
 On any configuration failure the tool exits with code `1`, prints a
 diagnostic on stderr, and emits nothing on stdout.
 
-### Notification colors schema
+### Notification colors (hardcoded)
 
-Section `Notifications` — version-check notification appearance:
+Notification colors are not configurable. All colors live in one embedded
+internal JSON document (`COLOR_CONFIG_JSON`) inside
+`src/githubtemplateastraluv/colors.py`:
 
-| Parameter | Type | Default | Allowed values |
-| --- | --- | --- | --- |
-| `new_version_color` | Selection | `bright_green` | `bright_green`, `bright_red`, `bright_yellow`, `bright_blue`, `bright_magenta`, `bright_cyan`, `bright_white` |
-| `error_color` | Selection | `bright_red` | `bright_green`, `bright_red`, `bright_yellow`, `bright_blue`, `bright_magenta`, `bright_cyan`, `bright_white` |
+- `notifications` assigns the new-version color `bright_green` (ANSI SGR 92)
+  and the error color `bright_red` (ANSI SGR 91).
+- `palette` maps every color token to its ANSI SGR prefix: `bright_green`
+  (92), `bright_red` (91), `bright_yellow` (93), `bright_blue` (94),
+  `bright_magenta` (95), `bright_cyan` (96), `bright_white` (97).
 
-The allowed values map to ANSI SGR codes 92, 91, 93, 94, 95, 96, and 97
-respectively. Both colors drive the automatic version-check notifications and
-fall back to the schema defaults when the configuration cannot be loaded.
+Both colors drive the automatic version-check notifications; no CLI option,
+file, or environment variable can alter them.
 
 # Documentation
 

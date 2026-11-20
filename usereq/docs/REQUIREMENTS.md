@@ -18,7 +18,7 @@ This document MUST follow these authoring rules (LLM-first, normative SRS):
 ### 1.2 Project Scope
 Project `githubtemplateastraluv`: a Python CLI application published on PyPI (`https://pypi.org/project/githubtemplateastraluv/`) and distributed as an Astral UV tool via `uv tool install githubtemplateastraluv` or executed on-the-fly via `uvx`; `git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` remains the optional development source of the `--upgrade --develop` variant; the repository doubles as the GitHub template `Ogekuri/GitHub-Template-AstralUV` ("GitHub template for Astral-UV app", author Francesco Rolando).
 
-Interface: text-only CLI in English; no GUI functionality is requested. Functional areas: management commands (`--help`, `--ver`, `--version`, `--upgrade`, `--uninstall`, with the `--develop` source modifier of `--upgrade`) independent from core logic; automatic online new-version check against PyPI throttled by an idle-time JSON cache; `--ver` dual-source report covering PyPI and GitHub; colored console notifications. Configurability: version-check parameters (endpoint, timeout, and idle-delays) remain hardcoded constants and stay unexposed (CTN-008); the cache location derives from the `$HOME` environment variable; notification colors are user-configurable through a JSON configuration CLI (`--get`, `--set`, `--unset`, `--print`, `--info`, `--print-raw`) persisting state at `$HOME/.config/githubtemplateastraluv/config.json` (REQ-024). No application project-local configuration layer exists; the repository-root `.g.conf` file belongs to repository tooling and is not application configuration. Performance constraints: HTTPS timeout of 2 seconds; cache gating avoids redundant network calls.
+Interface: text-only CLI in English; no GUI functionality is requested. Functional areas: management commands (`--help`, `--ver`, `--version`, `--upgrade`, `--uninstall`, with the `--develop` source modifier of `--upgrade`) independent from core logic; automatic online new-version check against PyPI throttled by an idle-time JSON cache; `--ver` dual-source report covering PyPI and GitHub; colored console notifications. Configurability: version-check parameters (endpoint, timeout, and idle-delays) remain hardcoded constants and stay unexposed (CTN-008); the cache location derives from the `$HOME` environment variable; notification colors are hardcoded in the embedded internal color JSON of the dedicated module `colors.py` (REQ-040); a JSON configuration CLI (`--get`, `--set`, `--unset`, `--print`, `--info`, `--print-raw`) persists schema state at `$HOME/.config/githubtemplateastraluv/config.json`. No application project-local configuration layer exists; the repository-root `.g.conf` file belongs to repository tooling and is not application configuration. Performance constraints: HTTPS timeout of 2 seconds; cache gating avoids redundant network calls.
 
 Component model: the CLI entry `src/githubtemplateastraluv/__main__.py` dispatches to management commands and core logic; a dedicated version-check component performs the HTTPS queries (PyPI JSON API for the gated check and the report, GitHub releases API for the report), cache persistence, and notification rendering before argument parsing; `scripts/templateastraluv.sh` wraps local execution. Repository tooling: `scripts/build.sh` packages the release into `dist/`, `scripts/clean.sh` removes every repository-internal execution-generated artifact so consecutive builds start from the identical state, and `scripts/pre-release-check.sh` verifies release readiness.
 
@@ -106,6 +106,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 │   ├── githubtemplateastraluv/
 │   │   ├── __init__.py
 │   │   ├── __main__.py
+│   │   ├── colors.py
 │   │   ├── config.py
 │   │   ├── config_render.py
 │   │   ├── core.py
@@ -216,9 +217,7 @@ Options:
 - **REQ-021**: MUST provide `--print-raw` writing the exact bytes of the global configuration JSON file to stdout without reformatting or added text.
 - **REQ-022**: MUST resolve configuration paths as case-sensitive, colon-separated canonical tokens and reject unknown or misplaced tokens with a stderr diagnostic.
 - **REQ-023**: MUST exit 1 with a clear stderr diagnostic on any configuration CLI failure, emit valid output on stdout only, and print nothing on failure.
-- **REQ-024**: MUST define configuration section `Notifications` holding Selection parameter `new_version_color` (default `bright_green`) and Selection parameter `error_color` (default `bright_red`).
-- **REQ-025**: MUST restrict both Selection parameters to the enum `bright_green`, `bright_red`, `bright_yellow`, `bright_blue`, `bright_magenta`, `bright_cyan`, `bright_white`.
-- **REQ-026**: MUST color version-check notifications with the configured values and fall back to schema defaults when the configuration cannot be loaded.
+- **REQ-026**: MUST color version-check notifications with the ANSI prefixes from the embedded internal color JSON of the dedicated module `colors.py`.
 - **REQ-027**: MUST format each `--ver` report row as `<label padded to 17 characters> : <version>`, rendering the labels `Current Installed`, `Latest @ PyPI`, and `Latest @ GitHub` with aligned version numbers.
 - **REQ-028**: MUST fill the `Latest @ PyPI` report row with the latest version from `https://pypi.org/pypi/githubtemplateastraluv/json`.
 - **REQ-029**: MUST fill the `Latest @ GitHub` report row with the latest release tag from `https://api.github.com/repos/Ogekuri/GitHub-Template-AstralUV/releases/latest`, stripped of its `v` prefix.
@@ -232,6 +231,8 @@ Options:
 - **REQ-037**: MUST apply the forcing options `--force --reinstall --refresh` to the upgrade `uv tool install` command only when `--force` accompanies `--upgrade`.
 - **REQ-038**: MUST interpret `--force` exclusively as an auxiliary modifier of `--upgrade`, leaving every other argument combination to the existing dispatch behavior.
 - **REQ-039**: MUST list every implemented command flag in the `--help` screen under Management Commands or Configuration Commands, each with a one-line English description.
+- **REQ-040**: MUST hold every notification color name and its ANSI SGR prefix in one embedded JSON document inside the dedicated module `src/githubtemplateastraluv/colors.py`.
+- **REQ-041**: MUST assign the embedded JSON new-version color `bright_green` and error color `bright_red`, exposing both ANSI prefixes via `colors.notification_colors`.
 
 ## 4. Test Requirements
 - **TST-001**: MUST verify REQ-001 and REQ-039 by running the CLI with no arguments and with `--help`; pass iff stdout equals the 3.2 template with `(x.y.z)` replaced by the current version.
@@ -241,10 +242,10 @@ Options:
 - **TST-005**: MUST verify REQ-007, REQ-008, and REQ-009 with a mocked PyPI endpoint: absent cache triggers one request; unexpired cache triggers none; timeout equals 2 seconds.
 - **TST-006**: MUST verify REQ-010, REQ-011, REQ-012, and REQ-013 by mocking a newer-release response; pass iff bright green output prints and the cache holds four fields with idle-time equal to check time plus 3600.
 - **TST-007**: MUST verify REQ-014 and REQ-015 by mocking an HTTP 503 response; pass iff a bright red error message prints and cache idle-time equals attempt time plus 86400.
-- **TST-008**: MUST verify `--print` and `--info` against complete golden outputs covering sibling branches, leaf details, selection tables, and requested subtrees.
+- **TST-008**: MUST verify `--print` and `--info` against complete golden outputs of the schema-empty tree: the `Application_Configuration` root without sections and requested-subtree rejections.
 - **TST-009**: MUST verify tree structural invariants and table alignment: real-node edges match schema topology and every detail line carries its owner prefix.
-- **TST-010**: MUST verify the configuration CLI by exercising `--get`, `--set`, `--unset`, `--print`, `--info`, and `--print-raw` for valid, invalid, and reset flows with isolated `$HOME`.
-- **TST-011**: MUST verify REQ-026 by asserting default bright green and bright red notifications and configured-color rendering after `--set`.
+- **TST-010**: MUST verify the configuration CLI with isolated `$HOME` by asserting every canonical or unknown path is rejected with exit 1 and a stderr diagnostic, and `--print`, `--info`, and `--print-raw` emit only schema-empty outputs.
+- **TST-011**: MUST verify REQ-026 and REQ-041 by asserting the version-check notifications render with the hardcoded bright green and bright red ANSI prefixes from the embedded color JSON.
 - **TST-012**: MUST verify DES-015 and CTN-010 by parsing `.github/workflows/release-pypi.yml` and asserting every `uses:` pin meets the Node24-or-later runtime constraint with no fallback variable present.
 - **TST-013**: MUST verify REQ-027 through REQ-031 with mocked PyPI and GitHub payloads: exact aligned rows, `unknown (<reason>)` rows plus red notes on failures, and cache deltas driven only by the PyPI outcome.
 - **TST-014**: MUST verify REQ-032, REQ-033, REQ-034, REQ-036, and REQ-038 by asserting the exact develop argv variants on Linux, the warning and matching manual command on non-Linux, and no upgrade dispatch for `--develop` or `--force` alone.

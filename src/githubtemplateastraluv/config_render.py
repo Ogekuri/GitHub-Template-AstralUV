@@ -15,7 +15,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
-from githubtemplateastraluv import config
+from githubtemplateastraluv import colors, config
 
 ## @brief Ancestor continuation segment: vertical bar plus three spaces.
 _PREFIX_CONTINUE = "│   "
@@ -216,10 +216,10 @@ def _selection_rows(param: config.ParamSpec, current: str) -> list[list[str]]:
 def _color_meaning(token: str) -> str:
     """@brief Build the Meaning cell text for one enum color token.
 
-    @param token {str} Selection enum token present in `COLOR_ANSI`.
+    @param token {str} Selection enum token present in `colors.PALETTE`.
     @return {str} Text naming the ANSI SGR code and human-readable color.
     """
-    sgr = config.COLOR_ANSI[token][2:-1]
+    sgr = colors.PALETTE[token][2:-1]
     return f"ANSI SGR {sgr} ({token.replace('_', ' ')})"
 
 

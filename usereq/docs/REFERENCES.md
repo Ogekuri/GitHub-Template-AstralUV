@@ -5,6 +5,7 @@
     ├── githubtemplateastraluv
     │   ├── __init__.py
     │   ├── __main__.py
+    │   ├── colors.py
     │   ├── config_render.py
     │   ├── config.py
     │   ├── core.py
@@ -39,7 +40,36 @@ from githubtemplateastraluv.core import main
 
 ---
 
-# config.py | Python | 662L | 25 symbols | 7 imports | 53 comments
+# colors.py | Python | 67L | 2 symbols | 2 imports | 27 comments
+> Path: `src/githubtemplateastraluv/colors.py`
+
+## Imports
+```
+import json
+from typing import Any
+```
+
+## Definitions
+
+- var `COLOR_CONFIG_JSON = (` (L23)
+### fn `def notification_colors() -> dict[str, str]` (L53-68)
+- @brief Ordered palette of color token to ANSI SGR prefix.
+- @brief Resolve the hardcoded ANSI prefixes for notifications.
+- @details Shared registry view of `COLOR_CONFIG["palette"]` consumed by
+- @details Selects `PALETTE` entries through the `COLOR_CONFIG["notifications"]` assignment (REQ-041); hardcoded values need no I/O and cannot fail (REQ-026).
+- @return {dict[str, str]} Mapping with `new_version_color` and `error_color` ANSI SGR prefix strings.
+- @satisfies REQ-026 REQ-040 REQ-041
+
+## Symbol Index
+|Symbol|Kind|Vis|Lines|Sig|
+|---|---|---|---|---|
+|`COLOR_CONFIG_JSON`|var|pub|23||
+|`notification_colors`|fn|pub|53-68|def notification_colors() -> dict[str, str]|
+
+
+---
+
+# config.py | Python | 597L | 23 symbols | 7 imports | 51 comments
 > Path: `src/githubtemplateastraluv/config.py`
 
 ## Imports
@@ -55,44 +85,44 @@ from typing import Any
 
 ## Definitions
 
-### class `class ParamSpec` `@dataclass(frozen=True)` (L47-73)
+### class `class ParamSpec` `@dataclass(frozen=True)` (L32-58)
 - @brief Immutable schema descriptor of one configuration parameter.
 - @details `token` equals the CLI path token byte for byte (REQ-022); drives parsing, validation, defaults, display, and documentation (DES-010).
-- fn `def constraints(self) -> str` (L66-73)
+- fn `def constraints(self) -> str` (L51-58)
   - @brief Constraints fragment rendered after the type label.
   - @return {str} Constraint summary, e.g. `7 allowed values`.
 
-### class `class SectionSpec` `@dataclass(frozen=True)` (L75-100)
+### class `class SectionSpec` `@dataclass(frozen=True)` (L60-85)
 - @brief Immutable schema descriptor of one fixed-schema section.
 - @details Fixed-schema dictionary branch; whole-section `--set` replaces the branch with a schema-compatible JSON object and `--unset` restores all parameter defaults (REQ-018).
-- fn `def param(self, token: str) -> ParamSpec | None` (L89-100)
+- fn `def param(self, token: str) -> ParamSpec | None` (L74-85)
   - @brief Ordered parameter descriptors of the section.
   - @brief Look up a parameter descriptor by canonical token.
   - @param token {str} Exact parameter path token (case-sensitive).
   - @return {ParamSpec | None} Matching descriptor; None if absent.
 
-### class `class ConfigError(Exception)` : Exception (L132-140)
+### class `class ConfigError(Exception)` : Exception (L99-107)
 - @brief Schema token to SectionSpec index for O(1) path resolution.
 - @brief Configuration error carrying a user-facing diagnostic.
 - @details Raised for invalid paths, values, JSON, validation failures, and unrecoverable filesystem conditions; handlers render the message on stderr and exit 1 (REQ-023).
 
-### fn `def config_path() -> Path` (L141-155)
+### fn `def config_path() -> Path` (L108-122)
 - @brief Resolve the absolute global configuration file path.
 - @details Prefers the `HOME` environment variable (CTN-008 consistency with the version-check cache); falls back to `Path.home()` when unset. No project-local configuration layer exists.
 - @return {Path} Absolute path of the global configuration JSON file.
 
-### fn `def default_config() -> dict[str, dict[str, str]]` (L156-167)
+### fn `def default_config() -> dict[str, dict[str, str]]` (L123-134)
 - @brief Build the schema-default configuration payload.
 - @return {dict[str, dict[str, str]]} Section token to parameter token to default value, in canonical schema order.
 
-### fn `def validate_config(payload: Any) -> None` (L168-220)
+### fn `def validate_config(payload: Any) -> None` (L135-187)
 - @brief Validate a complete configuration against the schema.
-- @details Strict validation: JSON object root, exact section key set, exact parameter key set per section, and Selection values restricted to the schema enum (REQ-025). Raises without mutation; callers reject the operation on error.
+- @details Strict validation: JSON object root, exact section key set, exact parameter key set per section, and Selection values restricted to the parameter enum. Raises without mutation; callers reject the operation on error.
 - @param payload {Any} Parsed JSON configuration payload.
 - @return {None}
 - @throws {ConfigError} On root-type, section-key, parameter-key, or enum-membership mismatch; message names the offending path.
 
-### fn `def atomic_write_json(path: Path, payload: dict[str, Any]) -> None` (L221-274)
+### fn `def atomic_write_json(path: Path, payload: dict[str, Any]) -> None` (L188-241)
 - @brief Persist a validated payload atomically (DES-014).
 - @details Writes a same-directory temporary file, flushes and fsyncs it, preserves the prior target file mode, atomically replaces the target with `os.replace`, and fsyncs the parent directory where the platform supports it. The prior valid file survives any failure before the replace; on failure the temporary file is removed.
 - @param path {Path} Target configuration file path.
@@ -101,37 +131,32 @@ from typing import Any
 - @throws {ConfigError} When directory creation or the write/replace sequence fails; the original file stays untouched.
 - @post On success the file holds exactly the serialized payload with two-space indentation and a trailing newline.
 
-### fn `def ensure_bootstrapped() -> None` (L275-296)
+### fn `def ensure_bootstrapped() -> None` (L242-262)
 - @brief Create missing directories and initialize missing defaults.
-- @details Applicable configuration commands call this before executing (REQ-024 storage lifecycle). Never overwrites an existing file, valid or not; strict loaders surface invalid files as errors.
+- @details Applicable configuration commands call this before executing. Never overwrites an existing file, valid or not; strict loaders surface invalid files as errors.
 - @return {None}
 - @throws {ConfigError} When directories cannot be created or the default file cannot be written.
 
-### fn `def load_strict() -> dict[str, dict[str, str]]` (L297-321)
+### fn `def load_strict() -> dict[str, dict[str, str]]` (L263-287)
 - @brief Load and strictly validate the global configuration.
 - @details Reads the file selected by `config_path`, parses JSON, and applies `validate_config`; every failure raises instead of partially succeeding (REQ-022, REQ-023).
 - @return {dict[str, dict[str, str]]} Validated configuration payload.
 - @throws {ConfigError} When the file is absent, unreadable, malformed JSON, or schema-invalid.
 
-### fn `def load_tolerant() -> dict[str, dict[str, str]]` (L322-336)
-- @brief Load the configuration, falling back to schema defaults.
-- @details Used by the version-check notification path (REQ-026): any load or validation failure silently selects schema defaults so existing non-configuration behavior never breaks and no extra output is produced.
-- @return {dict[str, dict[str, str]]} Validated payload or defaults.
-
-### fn `def resolve_segments(path: str) -> tuple[str, ...]` (L337-380)
+### fn `def resolve_segments(path: str) -> tuple[str, ...]` (L288-334)
 - @brief Resolve a canonical configuration path against the schema.
 - @details Case-sensitive colon-separated tokens (REQ-022). This schema defines exactly two depths: `Section` and `Section:Parameter`; no array or map parameters exist, so deeper segments and reserved operation tokens (`append`, `+`, `insert`) are rejected as unknown or misplaced.
 - @param path {str} Raw canonical path from the CLI.
 - @return {tuple[str, ...]} One or two resolved path tokens.
 - @throws {ConfigError} On empty paths, empty tokens, unknown section or parameter tokens, and excessive depth; messages list valid alternatives.
 
-### fn `def get_value(payload: dict[str, Any], segments: tuple[str, ...]) -> Any` (L381-394)
+### fn `def get_value(payload: dict[str, Any], segments: tuple[str, ...]) -> Any` (L335-348)
 - @brief Extract the JSON-serializable value at a resolved path.
 - @param payload {dict[str, Any]} Validated configuration payload.
 - @param segments {tuple[str, ...]} Tokens from `resolve_segments`.
 - @return {Any} Section dict copy for depth 1; parameter string for depth 2.
 
-### fn `def parse_value(spec: ParamSpec, raw: str) -> str` (L395-414)
+### fn `def parse_value(spec: ParamSpec, raw: str) -> str` (L349-368)
 - @brief Parse a raw CLI operand into the schema type of `spec`.
 - @details Selection parameters accept exactly one enum token; JSON quoting is not stripped, so quoted input is rejected (REQ-017 typed parsing before write).
 - @param spec {ParamSpec} Target parameter descriptor.
@@ -139,9 +164,9 @@ from typing import Any
 - @return {str} Validated enum token.
 - @throws {ConfigError} When `raw` is not an allowed value; the message enumerates valid values.
 
-### fn `def set_value(` (L415-418)
+### fn `def set_value(` (L369-372)
 
-### fn `def unset_value(` (L455-457)
+### fn `def unset_value(` (L409-411)
 - @brief Apply a validated `--set` mutation and return the result.
 - @details Depth 1 replaces the whole section with a parsed
 schema-compatible JSON object; depth 2 parses the operand
@@ -155,30 +180,25 @@ input payload is never mutated.
 - @throws {ConfigError} On path, JSON, type, enum, or whole-config
 validation failure; no persisted mutation occurs.
 
-### fn `def notification_colors() -> dict[str, str]` (L481-498)
+### fn `def operand_values(` (L435-439)
 - @brief Apply a `--unset` restore-to-default mutation.
-- @brief Resolve configured ANSI color prefixes for notifications.
 - @details Depth 1 restores all section parameter defaults; depth 2
 restores one parameter default (REQ-018). The resulting
 configuration is validated before returning; the input
 payload is never mutated.
-- @details Tolerant read (REQ-026): any load or validation failure selects schema defaults, keeping the version check non-fatal and silent about configuration problems.
 - @param payload {dict[str, Any]} Current validated configuration.
 - @param path {str} Raw canonical target path.
 - @return {dict[str, dict[str, str]]} New validated configuration.
-- @return {dict[str, str]} Mapping with `new_version_color` and `error_color` ANSI SGR prefix strings.
 - @throws {ConfigError} On path resolution or validation failure.
 
-### fn `def operand_values(` (L499-503)
-
-### fn `def _usage_examples(flag: str) -> str` `priv` (L534-569)
+### fn `def _usage_examples(flag: str) -> str` `priv` (L470-504)
 - @brief Extract the operand tokens following one CLI flag.
 - @brief Build schema-valid usage examples for one config flag.
 - @details Operands are every token after the first flag occurrence;
 the count must lie within `[minimum, maximum]`, otherwise a
 usage diagnostic with complete canonical path examples is
 raised (REQ-022).
-- @details Examples always carry complete canonical paths (REQ-022) and real schema-valid values.
+- @details Examples derive from the first schema section so they always carry complete canonical paths and real schema-valid values (REQ-022); with an empty schema the generic `<Path>` placeholder documents that every path is rejected.
 - @param args {list[str]} CLI argument tokens excluding program name.
 - @param flag {str} Exact flag token to locate (e.g. `--set`).
 - @param minimum {int} Minimum acceptable operand count.
@@ -189,31 +209,31 @@ raised (REQ-022).
 - @throws {ConfigError} When the operand count is out of range; the
 message embeds schema-valid usage examples.
 
-### fn `def _fail(error: ConfigError) -> int` `priv` (L570-582)
+### fn `def _fail(error: ConfigError) -> int` `priv` (L505-517)
 - @brief Report a configuration failure and yield the exit status.
 - @details Diagnostics go to stderr with an `Error:` prefix; stdout stays untouched so no partial success output exists (REQ-023).
 - @param error {ConfigError} Failure carrying the diagnostic message.
 - @return {int} Always 1.
 
-### fn `def handle_get(args: list[str]) -> int` (L583-603)
+### fn `def handle_get(args: list[str]) -> int` (L518-538)
 - @brief Execute `--get Path` (REQ-016).
 - @details Bootstraps storage, loads strictly, resolves the canonical path, and prints the resolved value as one valid JSON document on stdout without decoration (JSON-quoted strings, objects for sections).
 - @param args {list[str]} CLI argument tokens excluding program name.
 - @return {int} 0 on success; 1 with a stderr diagnostic on failure.
 
-### fn `def handle_set(args: list[str]) -> int` (L604-623)
+### fn `def handle_set(args: list[str]) -> int` (L539-558)
 - @brief Execute `--set Path Value` (REQ-017, DES-014).
 - @details Parses Value into the schema type, validates the entire resulting configuration, and persists atomically; success is silent and any rejection leaves the stored file untouched.
 - @param args {list[str]} CLI argument tokens excluding program name.
 - @return {int} 0 on success; 1 with a stderr diagnostic on failure.
 
-### fn `def handle_unset(args: list[str]) -> int` (L624-642)
+### fn `def handle_unset(args: list[str]) -> int` (L559-577)
 - @brief Execute `--unset Path` (REQ-018, DES-014).
 - @details Restores the targeted parameter or section to schema defaults and persists atomically; success is silent.
 - @param args {list[str]} CLI argument tokens excluding program name.
 - @return {int} 0 on success; 1 with a stderr diagnostic on failure.
 
-### fn `def handle_print_raw(args: list[str]) -> int` (L643-663)
+### fn `def handle_print_raw(args: list[str]) -> int` (L578-598)
 - @brief Execute `--print-raw` (REQ-021).
 - @details Emits the exact bytes of the global configuration JSON file without parsing, reformatting, headings, or trailing text; no tree formatting is ever applied (on-disk debugging view).
 - @param args {list[str]} CLI argument tokens excluding program name.
@@ -222,31 +242,29 @@ message embeds schema-valid usage examples.
 ## Symbol Index
 |Symbol|Kind|Vis|Lines|Sig|
 |---|---|---|---|---|
-|`ParamSpec`|class|pub|47-73|class ParamSpec|
-|`ParamSpec.constraints`|fn|pub|66-73|def constraints(self) -> str|
-|`SectionSpec`|class|pub|75-100|class SectionSpec|
-|`SectionSpec.param`|fn|pub|89-100|def param(self, token: str) -> ParamSpec | None|
-|`ConfigError`|class|pub|132-140|class ConfigError(Exception)|
-|`config_path`|fn|pub|141-155|def config_path() -> Path|
-|`default_config`|fn|pub|156-167|def default_config() -> dict[str, dict[str, str]]|
-|`validate_config`|fn|pub|168-220|def validate_config(payload: Any) -> None|
-|`atomic_write_json`|fn|pub|221-274|def atomic_write_json(path: Path, payload: dict[str, Any]...|
-|`ensure_bootstrapped`|fn|pub|275-296|def ensure_bootstrapped() -> None|
-|`load_strict`|fn|pub|297-321|def load_strict() -> dict[str, dict[str, str]]|
-|`load_tolerant`|fn|pub|322-336|def load_tolerant() -> dict[str, dict[str, str]]|
-|`resolve_segments`|fn|pub|337-380|def resolve_segments(path: str) -> tuple[str, ...]|
-|`get_value`|fn|pub|381-394|def get_value(payload: dict[str, Any], segments: tuple[st...|
-|`parse_value`|fn|pub|395-414|def parse_value(spec: ParamSpec, raw: str) -> str|
-|`set_value`|fn|pub|415-418|def set_value(|
-|`unset_value`|fn|pub|455-457|def unset_value(|
-|`notification_colors`|fn|pub|481-498|def notification_colors() -> dict[str, str]|
-|`operand_values`|fn|pub|499-503|def operand_values(|
-|`_usage_examples`|fn|priv|534-569|def _usage_examples(flag: str) -> str|
-|`_fail`|fn|priv|570-582|def _fail(error: ConfigError) -> int|
-|`handle_get`|fn|pub|583-603|def handle_get(args: list[str]) -> int|
-|`handle_set`|fn|pub|604-623|def handle_set(args: list[str]) -> int|
-|`handle_unset`|fn|pub|624-642|def handle_unset(args: list[str]) -> int|
-|`handle_print_raw`|fn|pub|643-663|def handle_print_raw(args: list[str]) -> int|
+|`ParamSpec`|class|pub|32-58|class ParamSpec|
+|`ParamSpec.constraints`|fn|pub|51-58|def constraints(self) -> str|
+|`SectionSpec`|class|pub|60-85|class SectionSpec|
+|`SectionSpec.param`|fn|pub|74-85|def param(self, token: str) -> ParamSpec | None|
+|`ConfigError`|class|pub|99-107|class ConfigError(Exception)|
+|`config_path`|fn|pub|108-122|def config_path() -> Path|
+|`default_config`|fn|pub|123-134|def default_config() -> dict[str, dict[str, str]]|
+|`validate_config`|fn|pub|135-187|def validate_config(payload: Any) -> None|
+|`atomic_write_json`|fn|pub|188-241|def atomic_write_json(path: Path, payload: dict[str, Any]...|
+|`ensure_bootstrapped`|fn|pub|242-262|def ensure_bootstrapped() -> None|
+|`load_strict`|fn|pub|263-287|def load_strict() -> dict[str, dict[str, str]]|
+|`resolve_segments`|fn|pub|288-334|def resolve_segments(path: str) -> tuple[str, ...]|
+|`get_value`|fn|pub|335-348|def get_value(payload: dict[str, Any], segments: tuple[st...|
+|`parse_value`|fn|pub|349-368|def parse_value(spec: ParamSpec, raw: str) -> str|
+|`set_value`|fn|pub|369-372|def set_value(|
+|`unset_value`|fn|pub|409-411|def unset_value(|
+|`operand_values`|fn|pub|435-439|def operand_values(|
+|`_usage_examples`|fn|priv|470-504|def _usage_examples(flag: str) -> str|
+|`_fail`|fn|priv|505-517|def _fail(error: ConfigError) -> int|
+|`handle_get`|fn|pub|518-538|def handle_get(args: list[str]) -> int|
+|`handle_set`|fn|pub|539-558|def handle_set(args: list[str]) -> int|
+|`handle_unset`|fn|pub|559-577|def handle_unset(args: list[str]) -> int|
+|`handle_print_raw`|fn|pub|578-598|def handle_print_raw(args: list[str]) -> int|
 
 
 ---
@@ -261,7 +279,7 @@ import sys
 import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
-from githubtemplateastraluv import config
+from githubtemplateastraluv import colors, config
 ```
 
 ## Definitions
@@ -336,7 +354,7 @@ ancestor has a later sibling (REQ-019 connector grammar).
 
 ### fn `def _color_meaning(token: str) -> str` `priv` (L216-225)
 - @brief Build the Meaning cell text for one enum color token.
-- @param token {str} Selection enum token present in `COLOR_ANSI`.
+- @param token {str} Selection enum token present in `colors.PALETTE`.
 - @return {str} Text naming the ANSI SGR code and human-readable color.
 
 ### fn `def _build_print_section(` `priv` (L226-228)
@@ -546,7 +564,7 @@ import sys
 
 ---
 
-# version_check.py | Python | 389L | 14 symbols | 8 imports | 47 comments
+# version_check.py | Python | 388L | 14 symbols | 8 imports | 46 comments
 > Path: `src/githubtemplateastraluv/version_check.py`
 
 ## Imports
@@ -558,33 +576,33 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
-from githubtemplateastraluv import config
+from githubtemplateastraluv import colors
 ```
 
 ## Definitions
 
-### fn `def _cache_path() -> Path` `priv` (L65-79)
+### fn `def _cache_path() -> Path` `priv` (L64-78)
 - @brief Placeholder replacing the version of a failed report source
 - @brief Resolve the absolute cache file path from `$HOME`.
 - @details Prefers the `HOME` environment variable (CTN-008); falls back to `Path.home()` when unset. Does not create directories.
 - @return {Path} Absolute cache file path.
 - @satisfies DES-007 CTN-008
 
-### fn `def _read_cache(path: Path) -> dict[str, Any] | None` `priv` (L80-96)
+### fn `def _read_cache(path: Path) -> dict[str, Any] | None` `priv` (L79-95)
 - @brief Load the idle-time cache JSON document.
 - @details Returns None when the file is absent, unreadable, unparsable, or not a JSON object; callers treat None as cache-miss.
 - @param path {Path} Cache file path.
 - @return {dict[str, Any] | None} Parsed cache payload or None.
 - @satisfies REQ-008
 
-### fn `def _human_timestamp(epoch_seconds: float) -> str` `priv` (L97-105)
+### fn `def _human_timestamp(epoch_seconds: float) -> str` `priv` (L96-104)
 - @brief Format an epoch value as UTC ISO-8601.
 - @param epoch_seconds {float} Epoch seconds to render.
 - @return {str} Timestamp shaped `YYYY-MM-DDTHH:MM:SSZ`.
 
-### fn `def _write_cache(` `priv` (L106-109)
+### fn `def _write_cache(` `priv` (L105-108)
 
-### fn `def _gate_allows_request(` `priv` (L134-136)
+### fn `def _gate_allows_request(` `priv` (L133-135)
 - @brief Persist the four-field idle-time cache document.
 - @details Creates missing parent directories. Field names follow A-03.
 - @param path {Path} Cache file path.
@@ -595,7 +613,7 @@ from githubtemplateastraluv import config
 - @post Cache file holds exactly four fields: last_check_epoch,
 last_check_human, idle_time_epoch, idle_time_human.
 
-### fn `def _parse_version(version: str) -> tuple[int, ...]` `priv` (L155-166)
+### fn `def _parse_version(version: str) -> tuple[int, ...]` `priv` (L154-165)
 - @brief Evaluate the idle-time request gate.
 - @brief Parse a dotted version string into a comparable tuple.
 - @details Gate opens on cache-miss (None), non-numeric idle_time_epoch,
@@ -609,7 +627,7 @@ or `now_epoch >= idle_time_epoch`; otherwise it stays closed.
 - @throws {ValueError} If any component is not an integer.
 - @satisfies REQ-008
 
-### fn `def _fetch_latest_pypi_version() -> str` `priv` (L167-190)
+### fn `def _fetch_latest_pypi_version() -> str` `priv` (L166-189)
 - @brief GET the PyPI JSON payload and extract the latest version.
 - @details Sends a plain GET to the PyPI JSON API; no Accept header is required. Payload shape: `{"info": {"version": "x.y.z"}}`.
 - @return {str} Latest published version in `x.y.z` format.
@@ -618,7 +636,7 @@ or `now_epoch >= idle_time_epoch`; otherwise it stays closed.
 - @throws {ValueError} On unparsable payload or missing version.
 - @satisfies REQ-009 REQ-028 CTN-006
 
-### fn `def _fetch_latest_github_version() -> str` `priv` (L191-218)
+### fn `def _fetch_latest_github_version() -> str` `priv` (L190-217)
 - @brief GET the latest GitHub release payload and extract its version.
 - @details Strips one leading `v`/`V` prefix from `tag_name`; the returned value is exactly the version downloaded by `--upgrade --develop` (REQ-032) regardless of the branch the release was tagged on.
 - @return {str} Latest release version in `x.y.z` format.
@@ -627,34 +645,34 @@ or `now_epoch >= idle_time_epoch`; otherwise it stays closed.
 - @throws {ValueError} On unparsable payload or missing tag_name.
 - @satisfies REQ-029 CTN-006
 
-### fn `def _format_report_row(label: str, value: str) -> str` `priv` (L219-229)
+### fn `def _format_report_row(label: str, value: str) -> str` `priv` (L218-228)
 - @brief Render one report row with the label padded to 17 columns.
 - @param label {str} Row label (e.g. `Latest @ PyPI`).
 - @param value {str} Version string or `unknown (<reason>)` placeholder.
 - @return {str} Row shaped `<label padded to 17> : <value>` (REQ-027).
 - @satisfies REQ-027
 
-### fn `def _unknown_value(reason: str) -> str` `priv` (L230-245)
+### fn `def _unknown_value(reason: str) -> str` `priv` (L229-244)
 - @brief Render the failed-source placeholder with its reason.
 - @details REQ-030 mandates the `unknown (<reason>)` shape, where `<reason>` names the actually encountered error (e.g. an HTTP 403/404 rate-limit response or a timeout); an empty reason degrades to the bare `unknown` placeholder.
 - @param reason {str} String rendering of the encountered error.
 - @return {str} `unknown (<reason>)`, or `unknown` when reason is empty.
 - @satisfies REQ-030
 
-### fn `def _print_colored(color: str, message: str) -> None` `priv` (L246-256)
+### fn `def _print_colored(color: str, message: str) -> None` `priv` (L245-255)
 - @brief Print a message wrapped in an ANSI color prefix and reset.
 - @param color {str} ANSI SGR prefix (bright green or bright red).
 - @param message {str} Plain-text message content.
 - @return {None}
 - @satisfies DES-008
 
-### fn `def _report_failure(` `priv` (L257-260)
+### fn `def _report_failure(` `priv` (L256-259)
 
-### fn `def run_version_check(installed_version: str, force: bool = False) -> None` (L275-318)
+### fn `def run_version_check(installed_version: str, force: bool = False) -> None` (L274-317)
 - @brief Emit the failure note and write the 86400 s cache.
 - @brief Execute the gated (or forced) online version check on PyPI.
-- @details The note renders with the configured error color (REQ-026).
-- @details Flow: cache read -> gate evaluation (skipped when `force`) -> PyPI JSON fetch -> version compare -> notify -> cache write. Notification colors come from the configuration subsystem with schema-default fallback (REQ-026). Success always refreshes the cache with the 3600 s idle-delay (REQ-013, A-04); fetch or parse failures print the configured error note and back off 86400 s (REQ-014, REQ-015, A-05). The call always returns normally; callers continue parsing (A-06).
+- @details The note renders with the hardcoded error color (REQ-026).
+- @details Flow: cache read -> gate evaluation (skipped when `force`) -> PyPI JSON fetch -> version compare -> notify -> cache write. Notification colors come from the hardcoded embedded color JSON (REQ-026, REQ-040). Success always refreshes the cache with the 3600 s idle-delay (REQ-013, A-04); fetch or parse failures print the hardcoded error note and back off 86400 s (REQ-014, REQ-015, A-05). The call always returns normally; callers continue parsing (A-06).
 - @param check_epoch {float} Epoch seconds of the failed attempt.
 - @param error {BaseException} Encountered error rendered in the note.
 - @param color {str} ANSI SGR prefix for the failure note.
@@ -663,11 +681,11 @@ or `now_epoch >= idle_time_epoch`; otherwise it stays closed.
 - @return {None}
 - @return {None}
 - @satisfies REQ-014 REQ-015 REQ-026 A-05
-- @satisfies REQ-007 REQ-008 REQ-009 REQ-010 REQ-011 REQ-012 REQ-013 REQ-014 REQ-015 REQ-024 REQ-025 REQ-026
+- @satisfies REQ-007 REQ-008 REQ-009 REQ-010 REQ-011 REQ-012 REQ-013 REQ-014 REQ-015 REQ-026
 
-### fn `def run_version_report(installed_version: str) -> None` (L319-390)
+### fn `def run_version_report(installed_version: str) -> None` (L318-389)
 - @brief Execute the forced dual-source version report (`--ver`).
-- @details Flow: fetch PyPI -> fetch GitHub -> emit the three aligned rows. Each failed fetch emits one bright red note naming the failed source with the configured error color (REQ-030) and its row prints `unknown (<reason>)`, carrying the actually encountered error, in place of the version (REQ-030). Rows print in order: installed, PyPI, GitHub; version columns aligned via a 17-character label pad (REQ-027). The GitHub row shows the latest release tag stripped of its `v` prefix, exactly the version downloaded by `--upgrade --develop` (REQ-029). The idle-time gate and cache file are bypassed (REQ-002); the cache write follows the PyPI outcome only: 3600 s on success, 86400 s on failure (REQ-031). The call always returns normally (A-06).
+- @details Flow: fetch PyPI -> fetch GitHub -> emit the three aligned rows. Each failed fetch emits one bright red note naming the failed source with the hardcoded error color (REQ-030) and its row prints `unknown (<reason>)`, carrying the actually encountered error, in place of the version (REQ-030). Rows print in order: installed, PyPI, GitHub; version columns aligned via a 17-character label pad (REQ-027). The GitHub row shows the latest release tag stripped of its `v` prefix, exactly the version downloaded by `--upgrade --develop` (REQ-029). The idle-time gate and cache file are bypassed (REQ-002); the cache write follows the PyPI outcome only: 3600 s on success, 86400 s on failure (REQ-031). The call always returns normally (A-06).
 - @param installed_version {str} Installed version in `x.y.z` format.
 - @return {None}
 - @satisfies REQ-002 REQ-027 REQ-028 REQ-029 REQ-030 REQ-031 REQ-026
@@ -675,20 +693,20 @@ or `now_epoch >= idle_time_epoch`; otherwise it stays closed.
 ## Symbol Index
 |Symbol|Kind|Vis|Lines|Sig|
 |---|---|---|---|---|
-|`_cache_path`|fn|priv|65-79|def _cache_path() -> Path|
-|`_read_cache`|fn|priv|80-96|def _read_cache(path: Path) -> dict[str, Any] | None|
-|`_human_timestamp`|fn|priv|97-105|def _human_timestamp(epoch_seconds: float) -> str|
-|`_write_cache`|fn|priv|106-109|def _write_cache(|
-|`_gate_allows_request`|fn|priv|134-136|def _gate_allows_request(|
-|`_parse_version`|fn|priv|155-166|def _parse_version(version: str) -> tuple[int, ...]|
-|`_fetch_latest_pypi_version`|fn|priv|167-190|def _fetch_latest_pypi_version() -> str|
-|`_fetch_latest_github_version`|fn|priv|191-218|def _fetch_latest_github_version() -> str|
-|`_format_report_row`|fn|priv|219-229|def _format_report_row(label: str, value: str) -> str|
-|`_unknown_value`|fn|priv|230-245|def _unknown_value(reason: str) -> str|
-|`_print_colored`|fn|priv|246-256|def _print_colored(color: str, message: str) -> None|
-|`_report_failure`|fn|priv|257-260|def _report_failure(|
-|`run_version_check`|fn|pub|275-318|def run_version_check(installed_version: str, force: bool...|
-|`run_version_report`|fn|pub|319-390|def run_version_report(installed_version: str) -> None|
+|`_cache_path`|fn|priv|64-78|def _cache_path() -> Path|
+|`_read_cache`|fn|priv|79-95|def _read_cache(path: Path) -> dict[str, Any] | None|
+|`_human_timestamp`|fn|priv|96-104|def _human_timestamp(epoch_seconds: float) -> str|
+|`_write_cache`|fn|priv|105-108|def _write_cache(|
+|`_gate_allows_request`|fn|priv|133-135|def _gate_allows_request(|
+|`_parse_version`|fn|priv|154-165|def _parse_version(version: str) -> tuple[int, ...]|
+|`_fetch_latest_pypi_version`|fn|priv|166-189|def _fetch_latest_pypi_version() -> str|
+|`_fetch_latest_github_version`|fn|priv|190-217|def _fetch_latest_github_version() -> str|
+|`_format_report_row`|fn|priv|218-228|def _format_report_row(label: str, value: str) -> str|
+|`_unknown_value`|fn|priv|229-244|def _unknown_value(reason: str) -> str|
+|`_print_colored`|fn|priv|245-255|def _print_colored(color: str, message: str) -> None|
+|`_report_failure`|fn|priv|256-259|def _report_failure(|
+|`run_version_check`|fn|pub|274-317|def run_version_check(installed_version: str, force: bool...|
+|`run_version_report`|fn|pub|318-389|def run_version_report(installed_version: str) -> None|
 
 
 ---

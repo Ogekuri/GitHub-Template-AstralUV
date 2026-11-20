@@ -18,21 +18,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-## @brief Ordered mapping of Selection enum token to ANSI SGR prefix.
-# @details Insertion order defines enum display order (REQ-025).
-COLOR_ANSI: dict[str, str] = {
-    "bright_green": "\033[92m",
-    "bright_red": "\033[91m",
-    "bright_yellow": "\033[93m",
-    "bright_blue": "\033[94m",
-    "bright_magenta": "\033[95m",
-    "bright_cyan": "\033[96m",
-    "bright_white": "\033[97m",
-}
-
-## @brief Ordered Selection enum tokens shared by both parameters (REQ-025).
-_SELECTION_ENUM: tuple[str, ...] = tuple(COLOR_ANSI)
-
 ## @brief Global configuration directory segments relative to `$HOME`.
 _CONFIG_DIR_SEGMENTS: tuple[str, ...] = (
     ".config",
@@ -59,7 +44,7 @@ class ParamSpec:
     description: str
     ## @brief Schema default value restored by `--unset` (REQ-018).
     default: str
-    ## @brief Ordered allowed values for Selection parameters (REQ-025).
+    ## @brief Ordered allowed values for Selection parameters.
     enum: tuple[str, ...]
 
     @property
@@ -98,30 +83,12 @@ class SectionSpec:
         return None
 
 
-## @brief Canonical configuration schema (DES-010, REQ-024).
-# @details Insertion order defines canonical display order.
-SCHEMA: tuple[SectionSpec, ...] = (
-    SectionSpec(
-        token="Notifications",
-        description="Version-check notification appearance.",
-        params=(
-            ParamSpec(
-                token="new_version_color",
-                type_label="Selection",
-                description="ANSI color of the new-version availability note.",
-                default="bright_green",
-                enum=_SELECTION_ENUM,
-            ),
-            ParamSpec(
-                token="error_color",
-                type_label="Selection",
-                description="ANSI color of the version-check failure note.",
-                default="bright_red",
-                enum=_SELECTION_ENUM,
-            ),
-        ),
-    ),
-)
+## @brief Canonical configuration schema (DES-010).
+# @details Insertion order defines canonical display order. The schema
+#          currently defines no sections: notification colors are
+#          hardcoded in the embedded internal color JSON of `colors.py`
+#          (REQ-040), so every canonical path is rejected (REQ-022).
+SCHEMA: tuple[SectionSpec, ...] = ()
 
 ## @brief Schema token to SectionSpec index for O(1) path resolution.
 _SECTIONS_BY_TOKEN: dict[str, SectionSpec] = {
@@ -170,8 +137,8 @@ def validate_config(payload: Any) -> None:
 
     @details Strict validation: JSON object root, exact section key set,
              exact parameter key set per section, and Selection values
-             restricted to the schema enum (REQ-025). Raises without
-             mutation; callers reject the operation on error.
+             restricted to the parameter enum. Raises without mutation;
+             callers reject the operation on error.
     @param payload {Any} Parsed JSON configuration payload.
     @return {None}
     @throws {ConfigError} On root-type, section-key, parameter-key, or
@@ -275,10 +242,9 @@ def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
 def ensure_bootstrapped() -> None:
     """@brief Create missing directories and initialize missing defaults.
 
-    @details Applicable configuration commands call this before executing
-             (REQ-024 storage lifecycle). Never overwrites an existing
-             file, valid or not; strict loaders surface invalid files as
-             errors.
+    @details Applicable configuration commands call this before
+             executing. Never overwrites an existing file, valid or
+             not; strict loaders surface invalid files as errors.
     @return {None}
     @throws {ConfigError} When directories cannot be created or the
             default file cannot be written.
@@ -319,21 +285,6 @@ def load_strict() -> dict[str, dict[str, str]]:
     return payload
 
 
-def load_tolerant() -> dict[str, dict[str, str]]:
-    """@brief Load the configuration, falling back to schema defaults.
-
-    @details Used by the version-check notification path (REQ-026): any
-             load or validation failure silently selects schema defaults
-             so existing non-configuration behavior never breaks and no
-             extra output is produced.
-    @return {dict[str, dict[str, str]]} Validated payload or defaults.
-    """
-    try:
-        return load_strict()
-    except ConfigError:
-        return default_config()
-
-
 def resolve_segments(path: str) -> tuple[str, ...]:
     """@brief Resolve a canonical configuration path against the schema.
 
@@ -357,9 +308,12 @@ def resolve_segments(path: str) -> tuple[str, ...]:
         )
     section = _SECTIONS_BY_TOKEN.get(segments[0])
     if section is None:
+        valid = ", ".join(_SECTIONS_BY_TOKEN) or (
+            "none (the schema defines no sections)"
+        )
         raise ConfigError(
             f"unknown configuration section {segments[0]!r} in path "
-            f"{path!r}; valid sections: {', '.join(_SECTIONS_BY_TOKEN)}"
+            f"{path!r}; valid sections: {valid}"
         )
     if len(segments) == 1:
         return segments
@@ -478,24 +432,6 @@ def unset_value(
     return updated
 
 
-def notification_colors() -> dict[str, str]:
-    """@brief Resolve configured ANSI color prefixes for notifications.
-
-    @details Tolerant read (REQ-026): any load or validation failure
-             selects schema defaults, keeping the version check non-fatal
-             and silent about configuration problems.
-    @return {dict[str, str]} Mapping with `new_version_color` and
-            `error_color` ANSI SGR prefix strings.
-    """
-    payload = load_tolerant()
-    return {
-        "new_version_color": COLOR_ANSI[
-            payload["Notifications"]["new_version_color"]
-        ],
-        "error_color": COLOR_ANSI[payload["Notifications"]["error_color"]],
-    }
-
-
 def operand_values(
     args: list[str],
     flag: str,
@@ -534,37 +470,36 @@ def operand_values(
 def _usage_examples(flag: str) -> str:
     """@brief Build schema-valid usage examples for one config flag.
 
-    @details Examples always carry complete canonical paths (REQ-022) and
-             real schema-valid values.
+    @details Examples derive from the first schema section so they always
+             carry complete canonical paths and real schema-valid values
+             (REQ-022); with an empty schema the generic `<Path>`
+             placeholder documents that every path is rejected.
     @param flag {str} Exact flag token (e.g. `--set`).
     @return {str} Semicolon-separated example command tails.
     """
+    section = SCHEMA[0] if SCHEMA else None
+    if section is None:
+        if flag in ("--print", "--info", "--print-raw"):
+            return f"'{flag}'"
+        return f"'{flag} <Path>'; the schema defines no sections"
+    if not section.params:
+        if flag in ("--print", "--info"):
+            return f"'{flag}' or '{flag} {section.token}'"
+        return f"'{flag} {section.token}'"
+    parameter_path = f"{section.token}:{section.params[0].token}"
     if flag == "--get":
-        return (
-            "'--get Notifications' or "
-            "'--get Notifications:new_version_color'"
-        )
+        return f"'--get {section.token}' or '--get {parameter_path}'"
     if flag == "--set":
-        section_example = (
-            "--set Notifications "
-            '{"new_version_color":"bright_green",'
-            '"error_color":"bright_red"}'
+        sample = json.dumps(
+            default_config()[section.token], separators=(",", ":")
         )
         return (
-            "'--set Notifications:new_version_color bright_green' or "
-            f"'{section_example}'"
+            f"'--set {parameter_path} {section.params[0].default}' or "
+            f"'--set {section.token} {sample}'"
         )
     if flag == "--unset":
-        return (
-            "'--unset Notifications:new_version_color' or "
-            "'--unset Notifications'"
-        )
-    if flag in ("--print", "--info"):
-        return (
-            f"'{flag}' or '{flag} Notifications' or "
-            f"'{flag} Notifications:new_version_color'"
-        )
-    return f"'{flag}'"
+        return f"'--unset {parameter_path}' or '--unset {section.token}'"
+    return f"'{flag}' or '{flag} {section.token}'"
 
 
 def _fail(error: ConfigError) -> int:
