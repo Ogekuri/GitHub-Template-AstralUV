@@ -381,6 +381,7 @@ def build_print_root(
     @param payload {dict[str, Any]} Current validated configuration.
     @param path {str | None} Raw canonical path or None for whole tree.
     @return {ConfigNode} Display root node.
+    @satisfies DES-058
     """
     if path is None:
         return ConfigNode(
@@ -393,11 +394,13 @@ def build_print_root(
             ],
         )
     segments = config.resolve_segments(path)
-    if len(segments) == 1:
-        return _build_print_section(
-            config._SECTIONS_BY_TOKEN[segments[0]], payload
+    section = config.section(segments[0])
+    if section is None:
+        raise config.ConfigError(
+            f"unknown configuration section {segments[0]!r}"
         )
-    section = config._SECTIONS_BY_TOKEN[segments[0]]
+    if len(segments) == 1:
+        return _build_print_section(section, payload)
     param = section.param(segments[1])
     if param is None:
         raise config.ConfigError(f"unknown parameter in path {path!r}")
@@ -415,6 +418,7 @@ def build_info_root(payload: dict[str, Any], path: str | None) -> ConfigNode:
     @param payload {dict[str, Any]} Current validated configuration.
     @param path {str | None} Raw canonical path or None for whole schema.
     @return {ConfigNode} Display root node.
+    @satisfies DES-058
     """
     if path is None:
         return ConfigNode(
@@ -425,9 +429,13 @@ def build_info_root(payload: dict[str, Any], path: str | None) -> ConfigNode:
             children=[_build_info_section(section) for section in config.SCHEMA],
         )
     segments = config.resolve_segments(path)
+    section = config.section(segments[0])
+    if section is None:
+        raise config.ConfigError(
+            f"unknown configuration section {segments[0]!r}"
+        )
     if len(segments) == 1:
-        return _build_info_section(config._SECTIONS_BY_TOKEN[segments[0]])
-    section = config._SECTIONS_BY_TOKEN[segments[0]]
+        return _build_info_section(section)
     param = section.param(segments[1])
     if param is None:
         raise config.ConfigError(f"unknown parameter in path {path!r}")

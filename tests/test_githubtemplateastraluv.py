@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 ## @file test_githubtemplateastraluv.py
-# @brief HDT unit suite (Generator mode) covering TST-001..TST-007,
-#        TST-012..TST-015, TST-021, TST-022, TST-023 for the
-#        githubtemplateastraluv CLI, its release workflow, its
+# @brief HDT unit suite (Generator mode) covering TST-001..TST-032 for
+#        the githubtemplateastraluv CLI, its release workflow, its
 #        repository tooling scripts, and its packaging-artifact contract.
 # @details HDT static-analysis artifact (section 7.1):
 #          - UUTs and levels: L0 = management.is_linux,
 #            management._management_entry, version_check._parse_version,
 #            version_check._human_timestamp,
-#            version_check._format_report_row; L1 =
+#            version_check._format_report_row, config.section,
+#            colors.notification_colors; L1 =
 #            management.build_help_text, management.print_help,
 #            management.cmd_upgrade, management.cmd_uninstall,
 #            version_check._read_cache, version_check._write_cache,
@@ -34,6 +34,12 @@
 #            core metadata of the tracked `dist/` sdist and wheel versus
 #            `pyproject.toml` (DES-016, DES-017, DES-042); the tracked
 #            artifacts are the read-only deterministic fixtures.
+#          - Release-tooling sandbox contracts (TST-016..TST-018,
+#            TST-029): `scripts/build.sh`, `scripts/pre-release-check.sh`,
+#            and `scripts/templateastraluv.sh` execute inside disposable
+#            git sandboxes under tmp_path; uv provisions the build
+#            tooling from the local uv cache; `VIRTUAL_ENV` is stripped
+#            from the child environments.
 #          - Execution plan (dev signal): `uv run pytest` from the project
 #            root; CI gates L0 -> L1 -> L2 fail-fast outside test bodies.
 import email.message
@@ -52,6 +58,7 @@ import zipfile
 
 import pytest
 
+import githubtemplateastraluv.colors as colors
 import githubtemplateastraluv.config as config
 import githubtemplateastraluv.config_render as config_render
 import githubtemplateastraluv.core as core
@@ -1511,3 +1518,517 @@ def test_version_check_parameter_config_cli_round_trip(
 
     assert config_render.handle_print(["--print"]) == 0
     assert "disable-version-check" in capsys.readouterr().out
+
+
+## @brief Repository root anchoring the file-level contract fixtures
+#         (gitignore, launcher, README, pyproject) exercised next.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+## @brief Launcher script contract target (TST-029).
+LAUNCHER_SCRIPT_PATH = PROJECT_ROOT / "scripts" / "templateastraluv.sh"
+
+## @brief Restricted PATH excluding `uv` for the CTN-012 sandbox probe.
+RESTRICTED_PATH = "/usr/bin:/bin"
+
+
+def test_notification_colors_embedded_json_contract(
+    isolated_home, capsys
+):
+    """@brief TST-011 (REQ-026/REQ-041): notifications use embedded JSON.
+
+    @details UUTs: colors.notification_colors (L0),
+            version_check.run_version_check (L1 composed).
+            expected_output = the embedded JSON assigns bright_green and
+            bright_red, the resolved ANSI SGR prefixes equal the 92/91
+            literals, and the rendered availability and failure notes
+            start with exactly those prefixes and end with the reset
+            suffix; expected_exception = none.
+    """
+    embedded = json.loads(colors.COLOR_CONFIG_JSON)
+    assert embedded["notifications"] == {
+        "new_version_color": "bright_green",
+        "error_color": "bright_red",
+    }
+    prefixes = colors.notification_colors()
+    assert prefixes == {
+        "new_version_color": "\033[92m",
+        "error_color": "\033[91m",
+    }
+    with mock.patch.object(
+        version_check.urllib.request,
+        "urlopen",
+        _mock_urlopen({"info": {"version": "9.9.9"}}),
+    ):
+        version_check.run_version_check("0.0.0")
+    out = capsys.readouterr().out
+    assert out.startswith(prefixes["new_version_color"])
+    assert out.endswith("\033[0m\n")
+    _cache_file(isolated_home).unlink()
+    http_error = urllib.error.HTTPError(
+        EXPECTED_PYPI_ENDPOINT,
+        503,
+        "Service Unavailable",
+        email.message.Message(),
+        None,
+    )
+    with mock.patch.object(
+        version_check.urllib.request,
+        "urlopen",
+        mock.Mock(side_effect=http_error),
+    ):
+        version_check.run_version_check("0.0.0")
+    out = capsys.readouterr().out
+    assert out.startswith(prefixes["error_color"])
+    assert out.endswith("\033[0m\n")
+
+
+def test_print_tree_edges_match_schema_and_details_carry_owner_prefix(
+    isolated_home,
+):
+    """@brief TST-009: rendered tree matches schema topology and prefixes.
+
+    @details UUTs: config_render.build_print_root,
+            config_render.render_tree (L1). expected_output = the
+            edge-marked node count equals sections plus parameters from
+            config.SCHEMA, every non-node line carries only
+            continuation-prefix segments and never an edge marker, and
+            every section heading embeds `[Path: <token>]`;
+            expected_exception = none.
+    """
+    config.ensure_bootstrapped()
+    payload = config.load_display()
+    root = config_render.build_print_root(payload, None)
+    lines = config_render.render_tree(root).split("\n")
+    edge = re.compile(r"^(?:│   |    )*(?:├── |└── )")
+    node_lines = [line for line in lines if edge.match(line)]
+    expected_nodes = len(config.SCHEMA) + sum(
+        len(section.params) for section in config.SCHEMA
+    )
+    assert len(node_lines) == expected_nodes
+    assert lines[0] == (
+        "Application_Configuration - Current configuration"
+    )
+    for section in config.SCHEMA:
+        assert any(
+            f"[Path: {section.token}]" in line for line in node_lines
+        )
+    for line in lines[1:]:
+        if not edge.match(line):
+            assert re.match(r"^(?:│   |    )+", line)
+            assert not re.search(r"├── |└── ", line)
+
+
+def test_print_and_info_tables_follow_glyph_contract(
+    isolated_home, capsys
+):
+    """@brief TST-024 (DES-053..DES-056): box-drawing glyph contract.
+
+    @details UUTs: config_render.handle_print,
+            config_render.handle_info (L1 composed). expected_output =
+            every non-ASCII character belongs to the mandated table
+            glyph set plus the tree last-child connector `└`, every
+            glyph line matches the rounded-corner border grammar
+            (top `╭─┬╮`, bottom `╰─┴╯`, double-line header separator
+            `╞═╪╡`, single-line row separator `├─┼┤`, data rows `│...│`),
+            and each border kind occurs; expected_exception = none.
+    """
+    config.ensure_bootstrapped()
+    assert config_render.handle_print(["--print"]) == 0
+    assert config_render.handle_info(["--info"]) == 0
+    out = capsys.readouterr().out
+    allowed = set("─│╭╮╰╯├┤┬┴┼═╞╪╡└")
+    edge_line = re.compile(r"^(?:│   |    )*(?:├── |└── )")
+    shape = re.compile(
+        r"^(?:│   |    )*(╭[─┬]*╮|╰[─┴]*╯|╞[═╪]*╡|├[─┼]*┤|│.*)$"
+    )
+    borders = {"top": 0, "bottom": 0, "header": 0, "row": 0}
+    for line in out.split("\n"):
+        glyphs = {c for c in line if ord(c) > 127}
+        assert glyphs <= allowed
+        if not glyphs or edge_line.match(line):
+            continue
+        assert shape.match(line)
+        stripped = re.sub(r"^(?:│   |    )*", "", line)
+        if stripped.startswith("╭"):
+            borders["top"] += 1
+        elif stripped.startswith("╰"):
+            borders["bottom"] += 1
+        elif stripped.startswith("╞"):
+            borders["header"] += 1
+        elif stripped.startswith("├"):
+            borders["row"] += 1
+    assert all(count > 0 for count in borders.values())
+
+
+def test_gitignore_keeps_dist_traversable():
+    """@brief TST-019 (DES-040): dist/ stays selectively re-includable.
+
+    @details expected_output = `git check-ignore -v --no-index`
+            resolves every probed `dist/` path to the `!dist/` or
+            `!dist/**/*` re-include rule (last matching pattern),
+            proving selective re-inclusion of versionable files;
+            expected_exception = none.
+    """
+    gitignore = (PROJECT_ROOT / ".gitignore").read_text(encoding="utf-8")
+    assert "!dist/" in gitignore
+    assert "!dist/**/*" in gitignore
+    for probe in ("dist/probe.whl", "dist/nested/probe.tar.gz"):
+        result = subprocess.run(
+            ["git", "-C", str(PROJECT_ROOT), "check-ignore",
+             "-v", "--no-index", probe],
+            capture_output=True,
+            text=True,
+        )
+        fields = result.stdout.rstrip("\n").split("\t")
+        assert len(fields) == 2, (probe, result.stdout, result.stderr)
+        assert "!dist/" in fields[0], (probe, result.stdout)
+
+
+def test_release_workflow_runs_on_pinned_ubuntu_2404():
+    """@brief TST-020 (DES-041): every job pins ubuntu-24.04.
+
+    @details expected_output = every `runs-on:` value equals
+            `ubuntu-24.04` and no `ubuntu-latest` label occurs anywhere
+            in the release workflow; expected_exception = none.
+    """
+    text = RELEASE_WORKFLOW_PATH.read_text(encoding="utf-8")
+    runs_on = re.findall(r"^\s*runs-on:\s*(\S+)\s*$", text, re.MULTILINE)
+    assert runs_on
+    assert set(runs_on) == {"ubuntu-24.04"}
+    assert "ubuntu-latest" not in text
+
+
+def test_pyproject_build_system_requires_setuptools_77_without_wheel():
+    """@brief TST-030 (DES-057): build-system floor matches PEP 639.
+
+    @details expected_output = build-system requires contains exactly
+            the `setuptools>=77.0.0` floor and `build>=1.0.0`, with no
+            `wheel` entry; expected_exception = none.
+    """
+    metadata = tomllib.loads(PYPROJECT_PATH.read_text(encoding="utf-8"))
+    requires = metadata["build-system"]["requires"]
+    assert requires == ["setuptools>=77.0.0", "build>=1.0.0"]
+
+
+def test_pyproject_declares_single_entry_point():
+    """@brief TST-031 (DES-003): exactly one console-script entry point.
+
+    @details expected_output = `project.scripts` maps only
+            `githubtemplateastraluv` to
+            `githubtemplateastraluv.__main__:main`; no alias entry
+            point exists; expected_exception = none.
+    """
+    metadata = tomllib.loads(PYPROJECT_PATH.read_text(encoding="utf-8"))
+    assert metadata["project"]["scripts"] == {
+        "githubtemplateastraluv": "githubtemplateastraluv.__main__:main"
+    }
+
+
+def test_readme_command_and_configuration_documentation_contract():
+    """@brief TST-032 (DES-059/DES-060): README stays behavior-consistent.
+
+    @details expected_output = README carries the exact REQ-003 upgrade
+            argv and the REQ-032 develop argv, documents the
+            `version_check:disable-version-check` parameter, and keeps
+            no stale schema-empty or configurable-color claims;
+            expected_exception = none.
+    """
+    text = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+    assert "`uv tool upgrade githubtemplateastraluv`" in text
+    assert (
+        "`uv tool install githubtemplateastraluv --reinstall --from "
+        "git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git`"
+        in text
+    )
+    assert "version_check:disable-version-check" in text
+    assert "currently defines no sections" not in text
+    assert "notification-color subsystem" not in text
+
+
+@pytest.mark.skipif(
+    hasattr(os, "geteuid") and os.geteuid() == 0,
+    reason="permission bits do not block the root user",
+)
+def test_cache_write_failure_does_not_abort_dispatch(
+    isolated_home, capsys
+):
+    """@brief TST-027 (REQ-046): unwritable cache never aborts the CLI.
+
+    @details UUT: core.main (L2). expected_output = with a read-only
+            `$HOME/.cache` directory and a mocked newer PyPI release,
+            the green note prints, the gated check returns normally,
+            the help screen dispatches, and the exit code is 0 with no
+            traceback; expected_exception = none.
+    """
+    cache_dir = isolated_home / ".cache"
+    cache_dir.mkdir()
+    cache_dir.chmod(0o500)
+    try:
+        with mock.patch.object(
+            version_check.urllib.request,
+            "urlopen",
+            _mock_urlopen({"info": {"version": "9.9.9"}}),
+        ):
+            exit_code = core.main([])
+    finally:
+        cache_dir.chmod(0o700)
+    assert exit_code == 0
+    out = capsys.readouterr().out
+    assert "New version available: 9.9.9" in out
+    assert out.endswith(EXPECTED_HELP_TEXT + "\n")
+
+
+def test_parse_version_tolerates_non_integer_components(
+    isolated_home, capsys
+):
+    """@brief TST-028 (REQ-047): tolerant leading-integer version parse.
+
+    @details UUTs: version_check._parse_version (L0),
+            version_check.run_version_check (L1 composed).
+            expected_output = suffix components map to their leading
+            integers, and a mocked `9.9.9rc1` release prints the green
+            availability note comparing against `0.0.1` with a 3600 s
+            cache refresh instead of the red failure note;
+            expected_exception = none.
+    """
+    assert version_check._parse_version("0.0.7rc1") == (0, 0, 7)
+    assert version_check._parse_version("v2") == (2,)
+    assert version_check._parse_version("v1.2.x") == (1, 2, 0)
+    assert version_check._parse_version("") == (0,)
+    with mock.patch.object(
+        version_check.urllib.request,
+        "urlopen",
+        _mock_urlopen({"info": {"version": "9.9.9rc1"}}),
+    ):
+        version_check.run_version_check("0.0.1")
+    out = capsys.readouterr().out
+    assert "New version available: 9.9.9rc1" in out
+    assert "(installed version: 0.0.1)" in out
+    assert "\033[91m" not in out
+    _assert_cache_fields(isolated_home, 3600)
+
+
+def _copy_project_skeleton(target):
+    """@brief Copy the build-relevant project tree into a sandbox.
+
+    @details Copies `scripts/`, `src/`, packaging metadata, lock,
+             README, LICENSE, and `.gitignore` into `target`, then
+             initializes a git repository and stages every copied path
+             so `git ls-files`-driven checks enumerate them.
+    @param target {Path} Sandbox repository root (existing directory).
+    @return {None}
+    """
+    for directory in ("scripts", "src"):
+        shutil.copytree(PROJECT_ROOT / directory, target / directory)
+    for name in (
+        "pyproject.toml",
+        "uv.lock",
+        "README.md",
+        "LICENSE",
+        ".gitignore",
+    ):
+        shutil.copyfile(PROJECT_ROOT / name, target / name)
+    _sandbox_git(target, "init", "-q")
+    _sandbox_git(target, "add", "-A")
+
+
+def _sandbox_environment():
+    """@brief Build the child environment for sandboxed tooling runs.
+
+    @details Copies the current environment minus `VIRTUAL_ENV`, so
+             sandboxed `uv run` invocations always manage their own
+             sandbox virtual environment.
+    @return {dict[str, str]} Environment mapping for subprocess.run.
+    """
+    environment = dict(os.environ)
+    environment.pop("VIRTUAL_ENV", None)
+    return environment
+
+
+def test_build_script_double_run_is_clean_and_idempotent(tmp_path):
+    """@brief TST-016 (DES-021..DES-025, DES-052): two builds, one pair.
+
+    @details expected_output = both sandboxed `scripts/build.sh` runs
+            exit 0 with the `[CLEAN]` pre-build delegation logged, the
+            seeded stale distribution artifact disappears, and `dist/`
+            ends holding exactly one sdist and one wheel for the
+            declared version; expected_exception = none. Isolation:
+            disposable git sandbox under tmp_path; uv provisions build
+            tooling from the local uv cache.
+    @param tmp_path {Path} pytest per-test temporary directory.
+    """
+    repo = tmp_path / "build sandbox"
+    repo.mkdir()
+    _copy_project_skeleton(repo)
+    stale = repo / "dist" / "githubtemplateastraluv-0.0.0.tar.gz"
+    stale.parent.mkdir()
+    stale.write_text("stale bytes\n", encoding="utf-8")
+    environment = _sandbox_environment()
+    first = subprocess.run(
+        ["bash", str(repo / "scripts" / "build.sh")],
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+    assert first.returncode == 0, first.stderr
+    second = subprocess.run(
+        ["bash", str(repo / "scripts" / "build.sh")],
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+    assert second.returncode == 0, second.stderr
+    for run in (first, second):
+        assert "==> [CLEAN] project root:" in run.stdout
+    assert not stale.exists()
+    artifacts = sorted(
+        item.name for item in (repo / "dist").iterdir() if item.is_file()
+    )
+    assert artifacts == [
+        "githubtemplateastraluv-0.0.6-py3-none-any.whl",
+        "githubtemplateastraluv-0.0.6.tar.gz",
+    ]
+
+
+def _copy_project_with_dummy_tests(target):
+    """@brief Copy the project skeleton plus a minimal dummy test suite.
+
+    @details Replacement `tests/` payload for pre-release-check
+             sandboxes: the inner `uv run pytest` phase executes only
+             the dummy module, preventing suite recursion.
+    @param target {Path} Sandbox repository root (existing directory).
+    @return {None}
+    """
+    _copy_project_skeleton(target)
+    (target / "tests").mkdir()
+    (target / "tests" / "test_sandbox_dummy.py").write_text(
+        "def test_sandbox_dummy():\n    assert True\n", encoding="utf-8"
+    )
+    _sandbox_git(target, "add", "-A")
+
+
+def test_pre_release_check_passes_and_leaves_clean_tree(tmp_path):
+    """@brief TST-017 (DES-026..DES-038): full verification run.
+
+    @details expected_output = the sandboxed
+            `scripts/pre-release-check.sh` exits 0 reporting the success
+            summary, and the sandbox `git status --porcelain --ignored`
+            equals the pre-execution baseline after the trap-based
+            cleanup; expected_exception = none.
+    @param tmp_path {Path} pytest per-test temporary directory.
+    """
+    repo = tmp_path / "preflight sandbox"
+    repo.mkdir()
+    _copy_project_with_dummy_tests(repo)
+    baseline = subprocess.run(
+        ["git", "-C", str(repo), "status", "--porcelain", "--ignored"],
+        capture_output=True,
+        text=True,
+    ).stdout
+    result = subprocess.run(
+        ["bash", str(repo / "scripts" / "pre-release-check.sh")],
+        capture_output=True,
+        text=True,
+        env=_sandbox_environment(),
+    )
+    assert result.returncode == 0, result.stderr
+    assert "all pre-release checks passed" in result.stdout
+    final = subprocess.run(
+        ["git", "-C", str(repo), "status", "--porcelain", "--ignored"],
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert final == baseline
+
+
+def test_pre_release_check_failing_tool_reports_phase_and_cleans(tmp_path):
+    """@brief TST-018 (DES-027/DES-034/DES-035): failing tool aborts clean.
+
+    @details expected_output = with a failing `uv` shim first on a
+            minimal PATH (no `BASH_ENV`, so the shim cannot be shadowed
+            by shell startup files), the sandboxed
+            `scripts/pre-release-check.sh` exits 1, the stderr
+            diagnostic names the first failed phase
+            (`python-bytecode-compilation`), the failure summary
+            prints, and the sandbox `git status --porcelain --ignored`
+            equals the pre-execution baseline;
+            expected_exception = none.
+    @param tmp_path {Path} pytest per-test temporary directory.
+    """
+    repo = tmp_path / "failing tool sandbox"
+    repo.mkdir()
+    _copy_project_with_dummy_tests(repo)
+    baseline = subprocess.run(
+        ["git", "-C", str(repo), "status", "--porcelain", "--ignored"],
+        capture_output=True,
+        text=True,
+    ).stdout
+    shim_dir = tmp_path / "shim bin"
+    shim_dir.mkdir()
+    shim = shim_dir / "uv"
+    shim.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    shim.chmod(0o755)
+    environment = {
+        "PATH": str(shim_dir) + os.pathsep + RESTRICTED_PATH,
+        "HOME": os.environ.get("HOME", str(repo)),
+    }
+    result = subprocess.run(
+        ["bash", str(repo / "scripts" / "pre-release-check.sh")],
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+    assert result.returncode == 1
+    assert (
+        "pre-release check failed: python-bytecode-compilation"
+        in result.stderr
+    )
+    assert "pre-release verification FAILED" in result.stderr
+    final = subprocess.run(
+        ["git", "-C", str(repo), "status", "--porcelain", "--ignored"],
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert final == baseline
+
+
+@pytest.mark.skipif(
+    shutil.which("git", path=RESTRICTED_PATH) is None,
+    reason="git unavailable on the restricted PATH",
+)
+@pytest.mark.skipif(
+    shutil.which("uv", path=RESTRICTED_PATH) is not None,
+    reason="uv reachable on the restricted PATH",
+)
+def test_launcher_missing_uv_exits_nonzero(sandbox_repo):
+    """@brief TST-029 (CTN-012): launcher validates uv before delegation.
+
+    @details expected_output = executing the sandboxed launcher on a
+            PATH without `uv` exits 1 with the stderr diagnostic
+            `ERROR: Required tool not found: uv` and delegates to no
+            runtime; expected_exception = none.
+    """
+    launcher = sandbox_repo / "scripts" / "templateastraluv.sh"
+    shutil.copyfile(LAUNCHER_SCRIPT_PATH, launcher)
+    launcher.chmod(0o755)
+    result = subprocess.run(
+        [str(launcher), "--help"],
+        capture_output=True,
+        text=True,
+        env={"PATH": RESTRICTED_PATH, "HOME": str(sandbox_repo)},
+    )
+    assert result.returncode == 1
+    assert "ERROR: Required tool not found: uv" in result.stderr
+
+
+def test_launcher_static_contract_uses_frozen_delegation():
+    """@brief TST-029 (CTN-013): delegation runs frozen against the lock.
+
+    @details expected_output = the launcher guards the delegation with
+            `command -v uv` and delegates through
+            `uv run --frozen --project` so the tracked `uv.lock` is
+            never rewritten; expected_exception = none.
+    """
+    text = LAUNCHER_SCRIPT_PATH.read_text(encoding="utf-8")
+    assert "command -v uv" in text
+    assert "run --frozen --project" in text

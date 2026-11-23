@@ -7,7 +7,7 @@
 # @details Used by CLI usage/version output and by release automation
 #          checks; single source of truth consumed by core.main dispatch
 #          and mirrored in pyproject.toml, scripts/templateastraluv.sh,
-#          README.md, and uv.lock per .g.conf ver_rules.
+#          README.md, and uv.lock.
 __version__ = "0.0.6"
 
 from githubtemplateastraluv.core import main  # noqa: F401

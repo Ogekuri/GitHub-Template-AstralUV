@@ -18,7 +18,7 @@ This document MUST follow these authoring rules (LLM-first, normative SRS):
 ### 1.2 Project Scope
 Project `githubtemplateastraluv`: a Python CLI application published on PyPI (`https://pypi.org/project/githubtemplateastraluv/`) and distributed as an Astral UV tool via `uv tool install githubtemplateastraluv` or executed on-the-fly via `uvx`; `git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` remains the optional development source of the `--upgrade --develop` variant; the repository doubles as the GitHub template `Ogekuri/GitHub-Template-AstralUV` ("GitHub template for Astral-UV app", author Francesco Rolando).
 
-Interface: text-only CLI in English; no GUI functionality is requested. Functional areas: management commands (`--help`, `--ver`, `--version`, `--upgrade`, `--uninstall`, with the `--develop` source modifier of `--upgrade`) independent from core logic; automatic online new-version check against PyPI throttled by an idle-time JSON cache; `--ver` dual-source report covering PyPI and GitHub; colored console notifications. Configurability: version-check parameters (endpoint, timeout, and idle-delays) remain hardcoded constants and stay unexposed (CTN-008); the automatic online check itself is switchable through the schema parameter `version_check:disable-version-check` (REQ-042..REQ-045); the cache location derives from the `$HOME` environment variable; notification colors are hardcoded in the embedded internal color JSON of the dedicated module `colors.py` (REQ-040); a JSON configuration CLI (`--get`, `--set`, `--unset`, `--print`, `--info`, `--print-raw`) persists schema state at `$HOME/.config/githubtemplateastraluv/config.json`. No application project-local configuration layer exists; the repository-root `.g.conf` file belongs to repository tooling and is not application configuration. Performance constraints: HTTPS timeout of 2 seconds; cache gating avoids redundant network calls.
+Interface: text-only CLI in English; no GUI functionality is requested. Functional areas: management commands (`--help`, `--ver`, `--version`, `--upgrade`, `--uninstall`, with the `--develop` source modifier of `--upgrade`) independent from core logic; automatic online new-version check against PyPI throttled by an idle-time JSON cache; `--ver` dual-source report covering PyPI and GitHub; colored console notifications. Configurability: version-check parameters (endpoint, timeout, and idle-delays) remain hardcoded constants and stay unexposed (CTN-008); the automatic online check itself is switchable through the schema parameter `version_check:disable-version-check` (REQ-042..REQ-045); the cache location derives from the `$HOME` environment variable; notification colors are hardcoded in the embedded internal color JSON of the dedicated module `colors.py` (REQ-040); a JSON configuration CLI (`--get`, `--set`, `--unset`, `--print`, `--info`, `--print-raw`) persists schema state at `$HOME/.config/githubtemplateastraluv/config.json`. No application project-local configuration layer exists. Performance constraints: HTTPS timeout of 2 seconds; cache gating avoids redundant network calls.
 
 Component model: the CLI entry `src/githubtemplateastraluv/__main__.py` dispatches to management commands and core logic; a dedicated version-check component performs the HTTPS queries (PyPI JSON API for the gated check and the report, GitHub releases API for the report), cache persistence, and notification rendering before argument parsing; `scripts/templateastraluv.sh` wraps local execution. Repository tooling: `scripts/build.sh` packages the release into `dist/`, `scripts/clean.sh` removes every repository-internal execution-generated artifact so consecutive builds start from the identical state, and `scripts/pre-release-check.sh` verifies release readiness.
 
@@ -64,7 +64,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 
 ### 2.2 Project Constraints
 - **CTN-001**: MUST initialize the repository by extracting `../skell.tgz` into the working directory, overwriting existing files and preserving empty directories.
-- **CTN-002**: MUST replace all seven keywords mapped in Section 1.2 with their resolved values in: `.g.conf`, `README.md`, `pyproject.toml`, `uv.lock`, `src/skell/core.py`, `scripts/skell.sh`, `src/skell/__main__.py`.
+- **CTN-002**: MUST replace all seven keywords mapped in Section 1.2 with their resolved values in: `README.md`, `pyproject.toml`, `uv.lock`, `src/skell/core.py`, `scripts/skell.sh`, `src/skell/__main__.py`.
 - **CTN-003**: MUST rename `scripts/skell.sh` to `scripts/templateastraluv.sh` after keyword substitution.
 - **CTN-004**: MUST rename the `src/skell` directory to `src/templateastraluv` after keyword substitution.
 - **CTN-005**: MUST generate application source files under `src/githubtemplateastraluv` following the pre-imposed skeleton schema.
@@ -74,13 +74,15 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **CTN-009**: MUST execute `--upgrade` and `--uninstall` side effects only on Linux, delegating to the installed `uv` command-line tool.
 - **CTN-010**: MUST NOT set `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` or `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` in `.github/workflows/release-pypi.yml`.
 - **CTN-011**: MUST NOT execute destructive git commands (`git clean -fdx`, `git reset --hard`) inside `scripts/build.sh`, `scripts/clean.sh`, or `scripts/pre-release-check.sh`.
+- **CTN-012**: MUST validate `uv` availability in `scripts/templateastraluv.sh` before delegation and terminate non-zero with a diagnostic naming `uv` when missing.
+- **CTN-013**: MUST delegate from `scripts/templateastraluv.sh` through `uv run --frozen --project`, never rewriting the tracked `uv.lock`.
 
 ## 3. Requirements
 
 ### 3.1 Design and Implementation
 - **DES-001**: MUST implement the application in Python with `pyproject.toml` packaging metadata compatible with `uv build`, `uv tool install`, and `uvx`.
-- **DES-002**: MUST declare in `pyproject.toml` every package, module, and data file required for `.github/workflows/release-uvx.yml` to build a complete distributable package.
-- **DES-003**: MUST expose a console-script entry point named `githubtemplateastraluv` that invokes the CLI defined in `src/githubtemplateastraluv/__main__.py`.
+- **DES-002**: MUST declare in `pyproject.toml` every package, module, and data file required for `.github/workflows/release-pypi.yml` to build a complete distributable package.
+- **DES-003**: MUST expose exactly one console-script entry point, named `githubtemplateastraluv`, invoking the CLI defined in `src/githubtemplateastraluv/__main__.py`.
 - **DES-004**: MUST place application sources under `src/githubtemplateastraluv/` with the CLI entry in `__main__.py` and core logic in `core.py`, mirroring the skeleton layout.
 - **DES-005**: MUST isolate management commands (`--help`, `--ver`, `--version`, `--upgrade`, `--uninstall`) from core logic in a dedicated module or clearly separated functions.
 - **DES-006**: MUST isolate the online version check (HTTPS query, cache persistence, notification rendering) in a dedicated component invoked before argument parsing.
@@ -90,7 +92,6 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 
 ```
 .
-├── .g.conf
 ├── .github/
 │   └── workflows/
 │       └── release-pypi.yml
@@ -168,6 +169,10 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **DES-054**: MUST render table outer borders with rounded corners: `╭`/`╮` on the top border, `╰`/`╯` on the bottom border, `┬`/`┴` column junctions.
 - **DES-055**: MUST separate each table header row from the content rows with the double-line border built from `╞`, `═`, `╪`, `╡`.
 - **DES-056**: MUST separate consecutive table content rows with the single-line border built from `├`, `─`, `┼`, `┤`.
+- **DES-057**: MUST declare `setuptools>=77.0.0` in the `pyproject.toml` build-system requires, without a `wheel` entry, keeping the PEP 639 license metadata buildable.
+- **DES-058**: MUST expose schema section lookup through a public `config` API consumed by `config_render`, without accessing module-private schema indices.
+- **DES-059**: MUST keep every README.md executed-command row byte-identical to the exact argv mandated by REQ-003, REQ-032, REQ-035, and REQ-036.
+- **DES-060**: MUST keep README.md configuration and color documentation consistent with the canonical schema (REQ-042) and the hardcoded color policy (REQ-040, CTN-008).
 
 ### 3.2 Functions
 - **REQ-001**: MUST print the verbatim English help screen (template below) when invoked with `--help` or with no arguments.
@@ -237,6 +242,8 @@ Options:
 - **REQ-043**: MUST skip the automatic version check entirely, executing no HTTPS request and no cache write, when `disable-version-check` is set to `yes`.
 - **REQ-044**: MUST treat an absent, unreadable, malformed, or non-object configuration file as `disable-version-check` unset, keeping the REQ-007 check enabled.
 - **REQ-045**: MUST keep the `--ver` and `--version` report active with its REQ-002 fetches and REQ-031 cache update regardless of the `disable-version-check` value.
+- **REQ-046**: MUST treat version-check cache persistence as best effort: a failing cache write MUST NOT raise, print, or alter exit status and argument dispatch (refines REQ-010, A-06).
+- **REQ-047**: MUST compare versions by tolerant tuple parsing: every dot-separated component contributes its leading integer digits; missing or non-numeric prefixes evaluate as zero.
 
 ## 4. Test Requirements
 - **TST-001**: MUST verify REQ-001 and REQ-039 by running the CLI with no arguments and with `--help`; pass iff stdout equals the 3.2 template with `(x.y.z)` replaced by the current version.
@@ -265,3 +272,9 @@ Options:
 - **TST-024**: MUST verify DES-053, DES-054, DES-055, and DES-056 by asserting every `--print` and `--info` table line uses only the mandated glyphs with rounded corners, the double-line header separator, and single-line row separators.
 - **TST-025**: MUST verify REQ-042, REQ-043, and REQ-044 in an isolated `$HOME` by asserting the gated check performs no `urlopen` call and no cache write when `disable-version-check` is `yes`, and executes when the parameter holds the default or the configuration file is absent or malformed.
 - **TST-026**: MUST verify REQ-045 by asserting `--ver` fetches PyPI and GitHub and refreshes the cache even when `disable-version-check` is `yes`.
+- **TST-027**: MUST verify REQ-046 with an unwritable cache directory in an isolated `$HOME`: the CLI still dispatches, exits 0, and prints no traceback.
+- **TST-028**: MUST verify REQ-047 with a mocked PyPI version carrying a non-integer suffix (e.g. `9.9.9rc1`): no error note prints and comparison uses leading integers.
+- **TST-029**: MUST verify CTN-012 and CTN-013 against `scripts/templateastraluv.sh`: a `uv`-less PATH exits non-zero with a diagnostic and the delegation argv contains `--frozen`.
+- **TST-030**: MUST verify DES-057 by parsing `pyproject.toml`: build-system requires contains `setuptools>=77.0.0` and no `wheel` entry.
+- **TST-031**: MUST verify DES-003 by parsing `pyproject.toml`: `project.scripts` declares exactly the `githubtemplateastraluv` entry point.
+- **TST-032**: MUST verify DES-059 and DES-060 by parsing `README.md`: upgrade rows match the mandated argv and no schema-empty or configurable-color claims remain.

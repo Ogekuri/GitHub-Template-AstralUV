@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68.0.0", "wheel>=0.41.0", "build>=1.0.0"]
+requires = ["setuptools>=77.0.0", "build>=1.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -35,7 +35,6 @@ Repository = "https://github.com/Ogekuri/GitHub-Template-AstralUV"
 
 [project.scripts]
 githubtemplateastraluv = "githubtemplateastraluv.__main__:main"
-templateastraluv = "githubtemplateastraluv.__main__:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

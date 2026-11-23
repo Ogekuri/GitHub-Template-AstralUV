@@ -16,7 +16,7 @@ from githubtemplateastraluv import (
 )
 # `__version__` is the single version source (package __init__, skeleton
 # schema); mirrored by pyproject.toml, scripts/templateastraluv.sh,
-# README.md, and uv.lock per .g.conf ver_rules.
+# README.md, and uv.lock.
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -24,7 +24,6 @@
 !setup.py
 !pyproject.toml
 !uv.lock
-!.g.conf
 !package-lock.json
 !package.json
 !src/

@@ -69,7 +69,7 @@ from typing import Any
 
 ---
 
-# config.py | Python | 710L | 26 symbols | 7 imports | 63 comments
+# config.py | Python | 725L | 27 symbols | 7 imports | 64 comments
 > Path: `src/githubtemplateastraluv/config.py`
 
 ## Imports
@@ -101,28 +101,35 @@ from typing import Any
   - @param token {str} Exact parameter path token (case-sensitive).
   - @return {ParamSpec | None} Matching descriptor; None if absent.
 
-### class `class ConfigError(Exception)` : Exception (L137-145)
+### fn `def section(token: str) -> SectionSpec | None` (L137-151)
 - @brief Schema token to SectionSpec index for O(1) path resolution.
+- @brief Look up one schema section descriptor by canonical token.
+- @details Public schema access point (DES-058): cross-module consumers (renderers, documentation builders) resolve sections through this API instead of module-private indices; `token` equals the CLI path token byte for byte (REQ-022). Complexity: O(1) dictionary lookup.
+- @param token {str} Exact section path token (case-sensitive).
+- @return {SectionSpec | None} Matching descriptor; None if absent.
+- @satisfies DES-010 DES-058
+
+### class `class ConfigError(Exception)` : Exception (L152-160)
 - @brief Configuration error carrying a user-facing diagnostic.
 - @details Raised for invalid paths, values, JSON, validation failures, and unrecoverable filesystem conditions; handlers render the message on stderr and exit 1 (REQ-023).
 
-### fn `def config_path() -> Path` (L146-160)
+### fn `def config_path() -> Path` (L161-175)
 - @brief Resolve the absolute global configuration file path.
 - @details Prefers the `HOME` environment variable (CTN-008 consistency with the version-check cache); falls back to `Path.home()` when unset. No project-local configuration layer exists.
 - @return {Path} Absolute path of the global configuration JSON file.
 
-### fn `def default_config() -> dict[str, dict[str, str]]` (L161-172)
+### fn `def default_config() -> dict[str, dict[str, str]]` (L176-187)
 - @brief Build the schema-default configuration payload.
 - @return {dict[str, dict[str, str]]} Section token to parameter token to default value, in canonical schema order.
 
-### fn `def validate_config(payload: Any) -> None` (L173-225)
+### fn `def validate_config(payload: Any) -> None` (L188-240)
 - @brief Validate a complete configuration against the schema.
 - @details Strict validation: JSON object root, exact section key set, exact parameter key set per section, and Selection values restricted to the parameter enum. Raises without mutation; callers reject the operation on error.
 - @param payload {Any} Parsed JSON configuration payload.
 - @return {None}
 - @throws {ConfigError} On root-type, section-key, parameter-key, or enum-membership mismatch; message names the offending path.
 
-### fn `def atomic_write_json(path: Path, payload: dict[str, Any]) -> None` (L226-279)
+### fn `def atomic_write_json(path: Path, payload: dict[str, Any]) -> None` (L241-294)
 - @brief Persist a validated payload atomically (DES-014).
 - @details Writes a same-directory temporary file, flushes and fsyncs it, preserves the prior target file mode, atomically replaces the target with `os.replace`, and fsyncs the parent directory where the platform supports it. The prior valid file survives any failure before the replace; on failure the temporary file is removed.
 - @param path {Path} Target configuration file path.
@@ -131,51 +138,51 @@ from typing import Any
 - @throws {ConfigError} When directory creation or the write/replace sequence fails; the original file stays untouched.
 - @post On success the file holds exactly the serialized payload with two-space indentation and a trailing newline.
 
-### fn `def ensure_bootstrapped() -> None` (L280-300)
+### fn `def ensure_bootstrapped() -> None` (L295-315)
 - @brief Create missing directories and initialize missing defaults.
 - @details Applicable configuration commands call this before executing. Never overwrites an existing file, valid or not; strict loaders surface invalid files as errors.
 - @return {None}
 - @throws {ConfigError} When directories cannot be created or the default file cannot be written.
 
-### fn `def _read_payload() -> Any` `priv` (L301-323)
+### fn `def _read_payload() -> Any` `priv` (L316-338)
 - @brief Read and parse the persisted configuration JSON document.
 - @details Resolves `config_path`, requires an existing file, reads it as UTF-8 text, and parses the JSON document; every failure raises without returning a partial result (REQ-023).
 - @return {Any} Parsed JSON payload.
 - @throws {ConfigError} When the file is absent, unreadable, or malformed JSON.
 
-### fn `def load_strict() -> dict[str, dict[str, str]]` (L324-338)
+### fn `def load_strict() -> dict[str, dict[str, str]]` (L339-353)
 - @brief Load and strictly validate the global configuration.
 - @details Reads the file selected by `config_path`, parses JSON, and applies `validate_config`; every failure raises instead of partially succeeding (REQ-022, REQ-023).
 - @return {dict[str, dict[str, str]]} Validated configuration payload.
 - @throws {ConfigError} When the file is absent, unreadable, malformed JSON, or schema-invalid.
 
-### fn `def load_display() -> dict[str, dict[str, str]]` (L339-375)
+### fn `def load_display() -> dict[str, dict[str, str]]` (L354-390)
 - @brief Load the schema-shaped display view of the configuration.
 - @details Read-only loader of the schema-driven `--print` and `--info` renderers (DES-010, DES-012): requires a JSON-object root, then projects the payload onto the schema. Content persisted by an older schema version never blocks rendering (TST-008): unknown sections and parameters are dropped, and schema branches or parameters missing from the file fall back to their schema defaults, so the result is always safe for the renderers' direct payload indexing. Unreadable, malformed, and non-object files remain hard failures (REQ-023).
 - @return {dict[str, dict[str, str]]} Schema-shaped payload: section token to parameter token to current value (schema default when absent from the file).
 - @throws {ConfigError} When the file is absent, unreadable, malformed JSON, or its root is not a JSON object.
 - @satisfies DES-010 TST-008 REQ-019 REQ-023
 
-### fn `def version_check_disabled() -> bool` (L376-400)
+### fn `def version_check_disabled() -> bool` (L391-415)
 - @brief Report whether the automatic version check is disabled.
 - @details Tolerant runtime reader (REQ-044): loads the schema-shaped display view and compares the `disable-version-check` value against the enabling enum token. An absent, unreadable, malformed, or non-object configuration file yields False (schema default: check enabled); unknown persisted keys are dropped by the loader, so stale-schema content never enables the suppression (REQ-042, TST-008).
 - @return {bool} True only when `version_check:disable-version-check` equals the enabling enum token; False otherwise.
 - @satisfies REQ-042 REQ-043 REQ-044
 
-### fn `def resolve_segments(path: str) -> tuple[str, ...]` (L401-447)
+### fn `def resolve_segments(path: str) -> tuple[str, ...]` (L416-462)
 - @brief Resolve a canonical configuration path against the schema.
 - @details Case-sensitive colon-separated tokens (REQ-022). This schema defines exactly two depths: `Section` and `Section:Parameter`; no array or map parameters exist, so deeper segments and reserved operation tokens (`append`, `+`, `insert`) are rejected as unknown or misplaced.
 - @param path {str} Raw canonical path from the CLI.
 - @return {tuple[str, ...]} One or two resolved path tokens.
 - @throws {ConfigError} On empty paths, empty tokens, unknown section or parameter tokens, and excessive depth; messages list valid alternatives.
 
-### fn `def get_value(payload: dict[str, Any], segments: tuple[str, ...]) -> Any` (L448-461)
+### fn `def get_value(payload: dict[str, Any], segments: tuple[str, ...]) -> Any` (L463-476)
 - @brief Extract the JSON-serializable value at a resolved path.
 - @param payload {dict[str, Any]} Validated configuration payload.
 - @param segments {tuple[str, ...]} Tokens from `resolve_segments`.
 - @return {Any} Section dict copy for depth 1; parameter string for depth 2.
 
-### fn `def parse_value(spec: ParamSpec, raw: str) -> str` (L462-481)
+### fn `def parse_value(spec: ParamSpec, raw: str) -> str` (L477-496)
 - @brief Parse a raw CLI operand into the schema type of `spec`.
 - @details Selection parameters accept exactly one enum token; JSON quoting is not stripped, so quoted input is rejected (REQ-017 typed parsing before write).
 - @param spec {ParamSpec} Target parameter descriptor.
@@ -183,9 +190,9 @@ from typing import Any
 - @return {str} Validated enum token.
 - @throws {ConfigError} When `raw` is not an allowed value; the message enumerates valid values.
 
-### fn `def set_value(` (L482-485)
+### fn `def set_value(` (L497-500)
 
-### fn `def unset_value(` (L522-524)
+### fn `def unset_value(` (L537-539)
 - @brief Apply a validated `--set` mutation and return the result.
 - @details Depth 1 replaces the whole section with a parsed
 schema-compatible JSON object; depth 2 parses the operand
@@ -199,7 +206,7 @@ input payload is never mutated.
 - @throws {ConfigError} On path, JSON, type, enum, or whole-config
 validation failure; no persisted mutation occurs.
 
-### fn `def operand_values(` (L548-552)
+### fn `def operand_values(` (L563-567)
 - @brief Apply a `--unset` restore-to-default mutation.
 - @details Depth 1 restores all section parameter defaults; depth 2
 restores one parameter default (REQ-018). The resulting
@@ -210,7 +217,7 @@ payload is never mutated.
 - @return {dict[str, dict[str, str]]} New validated configuration.
 - @throws {ConfigError} On path resolution or validation failure.
 
-### fn `def _usage_examples(flag: str) -> str` `priv` (L583-617)
+### fn `def _usage_examples(flag: str) -> str` `priv` (L598-632)
 - @brief Extract the operand tokens following one CLI flag.
 - @brief Build schema-valid usage examples for one config flag.
 - @details Operands are every token after the first flag occurrence;
@@ -228,31 +235,31 @@ raised (REQ-022).
 - @throws {ConfigError} When the operand count is out of range; the
 message embeds schema-valid usage examples.
 
-### fn `def _fail(error: ConfigError) -> int` `priv` (L618-630)
+### fn `def _fail(error: ConfigError) -> int` `priv` (L633-645)
 - @brief Report a configuration failure and yield the exit status.
 - @details Diagnostics go to stderr with an `Error:` prefix; stdout stays untouched so no partial success output exists (REQ-023).
 - @param error {ConfigError} Failure carrying the diagnostic message.
 - @return {int} Always 1.
 
-### fn `def handle_get(args: list[str]) -> int` (L631-651)
+### fn `def handle_get(args: list[str]) -> int` (L646-666)
 - @brief Execute `--get Path` (REQ-016).
 - @details Bootstraps storage, loads strictly, resolves the canonical path, and prints the resolved value as one valid JSON document on stdout without decoration (JSON-quoted strings, objects for sections).
 - @param args {list[str]} CLI argument tokens excluding program name.
 - @return {int} 0 on success; 1 with a stderr diagnostic on failure.
 
-### fn `def handle_set(args: list[str]) -> int` (L652-671)
+### fn `def handle_set(args: list[str]) -> int` (L667-686)
 - @brief Execute `--set Path Value` (REQ-017, DES-014).
 - @details Parses Value into the schema type, validates the entire resulting configuration, and persists atomically; success is silent and any rejection leaves the stored file untouched.
 - @param args {list[str]} CLI argument tokens excluding program name.
 - @return {int} 0 on success; 1 with a stderr diagnostic on failure.
 
-### fn `def handle_unset(args: list[str]) -> int` (L672-690)
+### fn `def handle_unset(args: list[str]) -> int` (L687-705)
 - @brief Execute `--unset Path` (REQ-018, DES-014).
 - @details Restores the targeted parameter or section to schema defaults and persists atomically; success is silent.
 - @param args {list[str]} CLI argument tokens excluding program name.
 - @return {int} 0 on success; 1 with a stderr diagnostic on failure.
 
-### fn `def handle_print_raw(args: list[str]) -> int` (L691-711)
+### fn `def handle_print_raw(args: list[str]) -> int` (L706-726)
 - @brief Execute `--print-raw` (REQ-021).
 - @details Emits the exact bytes of the global configuration JSON file without parsing, reformatting, headings, or trailing text; no tree formatting is ever applied (on-disk debugging view).
 - @param args {list[str]} CLI argument tokens excluding program name.
@@ -265,33 +272,34 @@ message embeds schema-valid usage examples.
 |`ParamSpec.constraints`|fn|pub|53-60|def constraints(self) -> str|
 |`SectionSpec`|class|pub|62-87|class SectionSpec|
 |`SectionSpec.param`|fn|pub|76-87|def param(self, token: str) -> ParamSpec | None|
-|`ConfigError`|class|pub|137-145|class ConfigError(Exception)|
-|`config_path`|fn|pub|146-160|def config_path() -> Path|
-|`default_config`|fn|pub|161-172|def default_config() -> dict[str, dict[str, str]]|
-|`validate_config`|fn|pub|173-225|def validate_config(payload: Any) -> None|
-|`atomic_write_json`|fn|pub|226-279|def atomic_write_json(path: Path, payload: dict[str, Any]...|
-|`ensure_bootstrapped`|fn|pub|280-300|def ensure_bootstrapped() -> None|
-|`_read_payload`|fn|priv|301-323|def _read_payload() -> Any|
-|`load_strict`|fn|pub|324-338|def load_strict() -> dict[str, dict[str, str]]|
-|`load_display`|fn|pub|339-375|def load_display() -> dict[str, dict[str, str]]|
-|`version_check_disabled`|fn|pub|376-400|def version_check_disabled() -> bool|
-|`resolve_segments`|fn|pub|401-447|def resolve_segments(path: str) -> tuple[str, ...]|
-|`get_value`|fn|pub|448-461|def get_value(payload: dict[str, Any], segments: tuple[st...|
-|`parse_value`|fn|pub|462-481|def parse_value(spec: ParamSpec, raw: str) -> str|
-|`set_value`|fn|pub|482-485|def set_value(|
-|`unset_value`|fn|pub|522-524|def unset_value(|
-|`operand_values`|fn|pub|548-552|def operand_values(|
-|`_usage_examples`|fn|priv|583-617|def _usage_examples(flag: str) -> str|
-|`_fail`|fn|priv|618-630|def _fail(error: ConfigError) -> int|
-|`handle_get`|fn|pub|631-651|def handle_get(args: list[str]) -> int|
-|`handle_set`|fn|pub|652-671|def handle_set(args: list[str]) -> int|
-|`handle_unset`|fn|pub|672-690|def handle_unset(args: list[str]) -> int|
-|`handle_print_raw`|fn|pub|691-711|def handle_print_raw(args: list[str]) -> int|
+|`section`|fn|pub|137-151|def section(token: str) -> SectionSpec | None|
+|`ConfigError`|class|pub|152-160|class ConfigError(Exception)|
+|`config_path`|fn|pub|161-175|def config_path() -> Path|
+|`default_config`|fn|pub|176-187|def default_config() -> dict[str, dict[str, str]]|
+|`validate_config`|fn|pub|188-240|def validate_config(payload: Any) -> None|
+|`atomic_write_json`|fn|pub|241-294|def atomic_write_json(path: Path, payload: dict[str, Any]...|
+|`ensure_bootstrapped`|fn|pub|295-315|def ensure_bootstrapped() -> None|
+|`_read_payload`|fn|priv|316-338|def _read_payload() -> Any|
+|`load_strict`|fn|pub|339-353|def load_strict() -> dict[str, dict[str, str]]|
+|`load_display`|fn|pub|354-390|def load_display() -> dict[str, dict[str, str]]|
+|`version_check_disabled`|fn|pub|391-415|def version_check_disabled() -> bool|
+|`resolve_segments`|fn|pub|416-462|def resolve_segments(path: str) -> tuple[str, ...]|
+|`get_value`|fn|pub|463-476|def get_value(payload: dict[str, Any], segments: tuple[st...|
+|`parse_value`|fn|pub|477-496|def parse_value(spec: ParamSpec, raw: str) -> str|
+|`set_value`|fn|pub|497-500|def set_value(|
+|`unset_value`|fn|pub|537-539|def unset_value(|
+|`operand_values`|fn|pub|563-567|def operand_values(|
+|`_usage_examples`|fn|priv|598-632|def _usage_examples(flag: str) -> str|
+|`_fail`|fn|priv|633-645|def _fail(error: ConfigError) -> int|
+|`handle_get`|fn|pub|646-666|def handle_get(args: list[str]) -> int|
+|`handle_set`|fn|pub|667-686|def handle_set(args: list[str]) -> int|
+|`handle_unset`|fn|pub|687-705|def handle_unset(args: list[str]) -> int|
+|`handle_print_raw`|fn|pub|706-726|def handle_print_raw(args: list[str]) -> int|
 
 
 ---
 
-# config_render.py | Python | 493L | 18 symbols | 6 imports | 41 comments
+# config_render.py | Python | 501L | 18 symbols | 6 imports | 41 comments
 > Path: `src/githubtemplateastraluv/config_render.py`
 
 ## Imports
@@ -417,7 +425,7 @@ schema-valid example value, and the `Allowed Values` table
 - @param param {config.ParamSpec} Parameter schema descriptor.
 - @return {ConfigNode} Parameter node with documentation details.
 
-### fn `def build_info_root(payload: dict[str, Any], path: str | None) -> ConfigNode` (L409-436)
+### fn `def build_info_root(payload: dict[str, Any], path: str | None) -> ConfigNode` (L412-444)
 - @brief Build the display root for `--print`.
 - @brief Build the display root for `--info`.
 - @details Without a path the virtual `Application_Configuration` root
@@ -432,19 +440,21 @@ followed by its real descendants, without invented ancestors
 - @param path {str | None} Raw canonical path or None for whole schema.
 - @return {ConfigNode} Display root node.
 - @return {ConfigNode} Display root node.
+- @satisfies DES-058
+- @satisfies DES-058
 
-### fn `def _fail(error: config.ConfigError) -> int` `priv` (L437-446)
+### fn `def _fail(error: config.ConfigError) -> int` `priv` (L445-454)
 - @brief Report a rendering-command failure on stderr.
 - @param error {config.ConfigError} Failure carrying the diagnostic.
 - @return {int} Always 1 (REQ-023).
 
-### fn `def handle_print(args: list[str]) -> int` (L447-471)
+### fn `def handle_print(args: list[str]) -> int` (L455-479)
 - @brief Execute `--print [Path]` (REQ-019).
 - @details Bootstraps storage, loads the schema-shaped display view via `config.load_display` so content persisted by an older schema version never blocks rendering (DES-010, TST-008), builds the display tree, and prints the rendering on stdout; genuine failures (absent, unreadable, malformed JSON, or non-object file; invalid operands or paths) print nothing on stdout and report one stderr diagnostic with exit 1 (REQ-023).
 - @param args {list[str]} CLI argument tokens excluding program name.
 - @return {int} 0 on success; 1 on failure.
 
-### fn `def handle_info(args: list[str]) -> int` (L472-494)
+### fn `def handle_info(args: list[str]) -> int` (L480-502)
 - @brief Execute `--info [Path]` (REQ-020).
 - @details Shares the renderer with `--print` and loads the same schema-shaped display view via `config.load_display` so content persisted by an older schema version never blocks rendering (DES-010, TST-008); renders schema documentation with defaults and complete command examples; genuine failures print nothing on stdout and report one stderr diagnostic with exit 1 (REQ-023).
 - @param args {list[str]} CLI argument tokens excluding program name.
@@ -467,10 +477,10 @@ followed by its real descendants, without invented ancestors
 |`_build_info_section`|fn|priv|293-323|def _build_info_section(section: config.SectionSpec) -> C...|
 |`_build_info_parameter`|fn|priv|324-326|def _build_info_parameter(|
 |`build_print_root`|fn|pub|370-372|def build_print_root(|
-|`build_info_root`|fn|pub|409-436|def build_info_root(payload: dict[str, Any], path: str | ...|
-|`_fail`|fn|priv|437-446|def _fail(error: config.ConfigError) -> int|
-|`handle_print`|fn|pub|447-471|def handle_print(args: list[str]) -> int|
-|`handle_info`|fn|pub|472-494|def handle_info(args: list[str]) -> int|
+|`build_info_root`|fn|pub|412-444|def build_info_root(payload: dict[str, Any], path: str | ...|
+|`_fail`|fn|priv|445-454|def _fail(error: config.ConfigError) -> int|
+|`handle_print`|fn|pub|455-479|def handle_print(args: list[str]) -> int|
+|`handle_info`|fn|pub|480-502|def handle_info(args: list[str]) -> int|
 
 
 ---
@@ -588,7 +598,7 @@ import sys
 
 ---
 
-# version_check.py | Python | 392L | 14 symbols | 8 imports | 46 comments
+# version_check.py | Python | 416L | 14 symbols | 8 imports | 46 comments
 > Path: `src/githubtemplateastraluv/version_check.py`
 
 ## Imports
@@ -626,32 +636,39 @@ from githubtemplateastraluv import colors
 
 ### fn `def _write_cache(` `priv` (L105-108)
 
-### fn `def _gate_allows_request(` `priv` (L133-135)
+### fn `def _gate_allows_request(` `priv` (L143-145)
 - @brief Persist the four-field idle-time cache document.
-- @details Creates missing parent directories. Field names follow A-03.
+- @details Creates missing parent directories. Field names follow
+A-03. Persistence is best effort (REQ-046): any OSError
+from directory creation or the file write is swallowed
+silently, so a failing cache write never aborts the CLI,
+never prints, and never changes the dispatch path; the
+next gate evaluation simply treats the cache as a miss.
 - @param path {Path} Cache file path.
 - @param check_epoch {float} Epoch seconds of the check attempt.
 - @param idle_delay_seconds {int} Idle-delay applied after this check.
 - @return {None}
-- @satisfies REQ-010 REQ-011 DES-007
-- @post Cache file holds exactly four fields: last_check_epoch,
-last_check_human, idle_time_epoch, idle_time_human.
+- @satisfies REQ-010 REQ-011 REQ-046 DES-007
+- @post On write success the file holds exactly four fields:
+last_check_epoch, last_check_human, idle_time_epoch,
+idle_time_human; on write failure the prior cache state
+survives as-is and callers continue normally.
 
-### fn `def _parse_version(version: str) -> tuple[int, ...]` `priv` (L154-165)
+### fn `def _parse_version(version: str) -> tuple[int, ...]` `priv` (L164-188)
 - @brief Evaluate the idle-time request gate.
 - @brief Parse a dotted version string into a comparable tuple.
 - @details Gate opens on cache-miss (None), non-numeric idle_time_epoch,
 or `now_epoch >= idle_time_epoch`; otherwise it stays closed.
-- @details Strips one leading `v`/`V` prefix before splitting on dots.
+- @details Strips one leading `v`/`V` prefix, then maps every dot-separated component to its leading ASCII-digit value (REQ-047): `0.0.7rc1` -> (0, 0, 7); a component without leading digits evaluates as 0. Tolerant parsing never raises, so no published version string is ever reported as a check failure. Complexity: O(len(version)).
 - @param cache {dict[str, Any] | None} Parsed cache payload or None.
 - @param now_epoch {float} Current epoch seconds.
-- @param version {str} Version or release tag (e.g. `v1.2.3`).
+- @param version {str} Version or release tag (e.g. `v1.2.3rc1`).
 - @return {bool} True when an HTTPS request is permitted.
 - @return {tuple[int, ...]} Comparable component tuple.
-- @throws {ValueError} If any component is not an integer.
 - @satisfies REQ-008
+- @satisfies REQ-047
 
-### fn `def _fetch_latest_pypi_version() -> str` `priv` (L166-189)
+### fn `def _fetch_latest_pypi_version() -> str` `priv` (L189-212)
 - @brief GET the PyPI JSON payload and extract the latest version.
 - @details Sends a plain GET to the PyPI JSON API; no Accept header is required. Payload shape: `{"info": {"version": "x.y.z"}}`.
 - @return {str} Latest published version in `x.y.z` format.
@@ -660,7 +677,7 @@ or `now_epoch >= idle_time_epoch`; otherwise it stays closed.
 - @throws {ValueError} On unparsable payload or missing version.
 - @satisfies REQ-009 REQ-028 CTN-006
 
-### fn `def _fetch_latest_github_version() -> str` `priv` (L190-217)
+### fn `def _fetch_latest_github_version() -> str` `priv` (L213-240)
 - @brief GET the latest GitHub release payload and extract its version.
 - @details Strips one leading `v`/`V` prefix from `tag_name`; the returned value is exactly the version downloaded by `--upgrade --develop` (REQ-032) regardless of the branch the release was tagged on.
 - @return {str} Latest release version in `x.y.z` format.
@@ -669,30 +686,30 @@ or `now_epoch >= idle_time_epoch`; otherwise it stays closed.
 - @throws {ValueError} On unparsable payload or missing tag_name.
 - @satisfies REQ-029 CTN-006
 
-### fn `def _format_report_row(label: str, value: str) -> str` `priv` (L218-228)
+### fn `def _format_report_row(label: str, value: str) -> str` `priv` (L241-251)
 - @brief Render one report row with the label padded to 17 columns.
 - @param label {str} Row label (e.g. `Latest @ PyPI`).
 - @param value {str} Version string or `unknown (<reason>)` placeholder.
 - @return {str} Row shaped `<label padded to 17> : <value>` (REQ-027).
 - @satisfies REQ-027
 
-### fn `def _unknown_value(reason: str) -> str` `priv` (L229-244)
+### fn `def _unknown_value(reason: str) -> str` `priv` (L252-267)
 - @brief Render the failed-source placeholder with its reason.
 - @details REQ-030 mandates the `unknown (<reason>)` shape, where `<reason>` names the actually encountered error (e.g. an HTTP 403/404 rate-limit response or a timeout); an empty reason degrades to the bare `unknown` placeholder.
 - @param reason {str} String rendering of the encountered error.
 - @return {str} `unknown (<reason>)`, or `unknown` when reason is empty.
 - @satisfies REQ-030
 
-### fn `def _print_colored(color: str, message: str) -> None` `priv` (L245-255)
+### fn `def _print_colored(color: str, message: str) -> None` `priv` (L268-278)
 - @brief Print a message wrapped in an ANSI color prefix and reset.
 - @param color {str} ANSI SGR prefix (bright green or bright red).
 - @param message {str} Plain-text message content.
 - @return {None}
 - @satisfies DES-008
 
-### fn `def _report_failure(` `priv` (L256-259)
+### fn `def _report_failure(` `priv` (L279-282)
 
-### fn `def run_version_check(installed_version: str, force: bool = False) -> None` (L274-321)
+### fn `def run_version_check(installed_version: str, force: bool = False) -> None` (L297-344)
 - @brief Emit the failure note and write the 86400 s cache.
 - @brief Execute the gated (or forced) online version check on PyPI.
 - @details The note renders with the hardcoded error color (REQ-026).
@@ -705,15 +722,15 @@ or `now_epoch >= idle_time_epoch`; otherwise it stays closed.
 - @return {None}
 - @return {None}
 - @note The caller in `core.main` suppresses this call when the configuration switch `version_check:disable-version-check` is enabled (REQ-043); `--ver` / `--version` run the report instead and stay active regardless of the switch (REQ-045).
-- @satisfies REQ-014 REQ-015 REQ-026 A-05
-- @satisfies REQ-007 REQ-008 REQ-009 REQ-010 REQ-011 REQ-012 REQ-013 REQ-014 REQ-015 REQ-026
+- @satisfies REQ-014 REQ-015 REQ-026 REQ-046 A-05
+- @satisfies REQ-007 REQ-008 REQ-009 REQ-010 REQ-011 REQ-012 REQ-013 REQ-014 REQ-015 REQ-026 REQ-046 REQ-047
 
-### fn `def run_version_report(installed_version: str) -> None` (L322-393)
+### fn `def run_version_report(installed_version: str) -> None` (L345-417)
 - @brief Execute the forced dual-source version report (`--ver`).
 - @details Flow: fetch PyPI -> fetch GitHub -> emit the three aligned rows. Each failed fetch emits one bright red note naming the failed source with the hardcoded error color (REQ-030) and its row prints `unknown (<reason>)`, carrying the actually encountered error, in place of the version (REQ-030). Rows print in order: installed, PyPI, GitHub; version columns aligned via a 17-character label pad (REQ-027). The GitHub row shows the latest release tag stripped of its `v` prefix, exactly the version downloaded by `--upgrade --develop` (REQ-029). The idle-time gate and cache file are bypassed (REQ-002); the cache write follows the PyPI outcome only: 3600 s on success, 86400 s on failure (REQ-031). The call always returns normally (A-06).
 - @param installed_version {str} Installed version in `x.y.z` format.
 - @return {None}
-- @satisfies REQ-002 REQ-027 REQ-028 REQ-029 REQ-030 REQ-031 REQ-026
+- @satisfies REQ-002 REQ-027 REQ-028 REQ-029 REQ-030 REQ-031 REQ-026 REQ-046
 
 ## Symbol Index
 |Symbol|Kind|Vis|Lines|Sig|
@@ -722,16 +739,16 @@ or `now_epoch >= idle_time_epoch`; otherwise it stays closed.
 |`_read_cache`|fn|priv|79-95|def _read_cache(path: Path) -> dict[str, Any] | None|
 |`_human_timestamp`|fn|priv|96-104|def _human_timestamp(epoch_seconds: float) -> str|
 |`_write_cache`|fn|priv|105-108|def _write_cache(|
-|`_gate_allows_request`|fn|priv|133-135|def _gate_allows_request(|
-|`_parse_version`|fn|priv|154-165|def _parse_version(version: str) -> tuple[int, ...]|
-|`_fetch_latest_pypi_version`|fn|priv|166-189|def _fetch_latest_pypi_version() -> str|
-|`_fetch_latest_github_version`|fn|priv|190-217|def _fetch_latest_github_version() -> str|
-|`_format_report_row`|fn|priv|218-228|def _format_report_row(label: str, value: str) -> str|
-|`_unknown_value`|fn|priv|229-244|def _unknown_value(reason: str) -> str|
-|`_print_colored`|fn|priv|245-255|def _print_colored(color: str, message: str) -> None|
-|`_report_failure`|fn|priv|256-259|def _report_failure(|
-|`run_version_check`|fn|pub|274-321|def run_version_check(installed_version: str, force: bool...|
-|`run_version_report`|fn|pub|322-393|def run_version_report(installed_version: str) -> None|
+|`_gate_allows_request`|fn|priv|143-145|def _gate_allows_request(|
+|`_parse_version`|fn|priv|164-188|def _parse_version(version: str) -> tuple[int, ...]|
+|`_fetch_latest_pypi_version`|fn|priv|189-212|def _fetch_latest_pypi_version() -> str|
+|`_fetch_latest_github_version`|fn|priv|213-240|def _fetch_latest_github_version() -> str|
+|`_format_report_row`|fn|priv|241-251|def _format_report_row(label: str, value: str) -> str|
+|`_unknown_value`|fn|priv|252-267|def _unknown_value(reason: str) -> str|
+|`_print_colored`|fn|priv|268-278|def _print_colored(color: str, message: str) -> None|
+|`_report_failure`|fn|priv|279-282|def _report_failure(|
+|`run_version_check`|fn|pub|297-344|def run_version_check(installed_version: str, force: bool...|
+|`run_version_report`|fn|pub|345-417|def run_version_report(installed_version: str) -> None|
 
 
 ---

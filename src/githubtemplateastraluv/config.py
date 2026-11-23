@@ -134,6 +134,21 @@ _SECTIONS_BY_TOKEN: dict[str, SectionSpec] = {
 }
 
 
+def section(token: str) -> SectionSpec | None:
+    """@brief Look up one schema section descriptor by canonical token.
+
+    @details Public schema access point (DES-058): cross-module
+             consumers (renderers, documentation builders) resolve
+             sections through this API instead of module-private
+             indices; `token` equals the CLI path token byte for byte
+             (REQ-022). Complexity: O(1) dictionary lookup.
+    @param token {str} Exact section path token (case-sensitive).
+    @return {SectionSpec | None} Matching descriptor; None if absent.
+    @satisfies DES-010 DES-058
+    """
+    return _SECTIONS_BY_TOKEN.get(token)
+
+
 class ConfigError(Exception):
     """@brief Configuration error carrying a user-facing diagnostic.
 

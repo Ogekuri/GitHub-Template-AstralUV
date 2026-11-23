@@ -109,14 +109,21 @@ def _write_cache(
 ) -> None:
     """@brief Persist the four-field idle-time cache document.
 
-    @details Creates missing parent directories. Field names follow A-03.
+    @details Creates missing parent directories. Field names follow
+             A-03. Persistence is best effort (REQ-046): any OSError
+             from directory creation or the file write is swallowed
+             silently, so a failing cache write never aborts the CLI,
+             never prints, and never changes the dispatch path; the
+             next gate evaluation simply treats the cache as a miss.
     @param path {Path} Cache file path.
     @param check_epoch {float} Epoch seconds of the check attempt.
     @param idle_delay_seconds {int} Idle-delay applied after this check.
     @return {None}
-    @post Cache file holds exactly four fields: last_check_epoch,
-          last_check_human, idle_time_epoch, idle_time_human.
-    @satisfies REQ-010 REQ-011 DES-007
+    @post On write success the file holds exactly four fields:
+          last_check_epoch, last_check_human, idle_time_epoch,
+          idle_time_human; on write failure the prior cache state
+          survives as-is and callers continue normally.
+    @satisfies REQ-010 REQ-011 REQ-046 DES-007
     """
     idle_epoch = int(check_epoch) + idle_delay_seconds
     payload = {
@@ -125,9 +132,12 @@ def _write_cache(
         "idle_time_epoch": idle_epoch,
         "idle_time_human": _human_timestamp(idle_epoch),
     }
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as handle:
+            json.dump(payload, handle)
+    except OSError:
+        return
 
 
 def _gate_allows_request(
@@ -154,13 +164,26 @@ def _gate_allows_request(
 def _parse_version(version: str) -> tuple[int, ...]:
     """@brief Parse a dotted version string into a comparable tuple.
 
-    @details Strips one leading `v`/`V` prefix before splitting on dots.
-    @param version {str} Version or release tag (e.g. `v1.2.3`).
+    @details Strips one leading `v`/`V` prefix, then maps every
+             dot-separated component to its leading ASCII-digit value
+             (REQ-047): `0.0.7rc1` -> (0, 0, 7); a component without
+             leading digits evaluates as 0. Tolerant parsing never
+             raises, so no published version string is ever reported
+             as a check failure. Complexity: O(len(version)).
+    @param version {str} Version or release tag (e.g. `v1.2.3rc1`).
     @return {tuple[int, ...]} Comparable component tuple.
-    @throws {ValueError} If any component is not an integer.
+    @satisfies REQ-047
     """
     text = version[1:] if version[:1] in ("v", "V") else version
-    return tuple(int(part) for part in text.split("."))
+    components: list[int] = []
+    for part in text.split("."):
+        value = 0
+        for character in part:
+            if character not in "0123456789":
+                break
+            value = value * 10 + (ord(character) - 48)
+        components.append(value)
+    return tuple(components)
 
 
 def _fetch_latest_pypi_version() -> str:
@@ -265,7 +288,7 @@ def _report_failure(
     @param error {BaseException} Encountered error rendered in the note.
     @param color {str} ANSI SGR prefix for the failure note.
     @return {None}
-    @satisfies REQ-014 REQ-015 REQ-026 A-05
+    @satisfies REQ-014 REQ-015 REQ-026 REQ-046 A-05
     """
     _print_colored(color, f"Version check failed: {error}")
     _write_cache(_cache_path(), check_epoch, _IDLE_DELAY_FAILURE_SECONDS)
@@ -291,7 +314,7 @@ def run_version_check(installed_version: str, force: bool = False) -> None:
           and stay active regardless of the switch (REQ-045).
     @return {None}
     @satisfies REQ-007 REQ-008 REQ-009 REQ-010 REQ-011 REQ-012 REQ-013
-               REQ-014 REQ-015 REQ-026
+               REQ-014 REQ-015 REQ-026 REQ-046 REQ-047
     """
     check_epoch = time.time()
     palette = colors.notification_colors()
@@ -338,6 +361,7 @@ def run_version_report(installed_version: str) -> None:
     @param installed_version {str} Installed version in `x.y.z` format.
     @return {None}
     @satisfies REQ-002 REQ-027 REQ-028 REQ-029 REQ-030 REQ-031 REQ-026
+               REQ-046
     """
     palette = colors.notification_colors()
     check_epoch = time.time()

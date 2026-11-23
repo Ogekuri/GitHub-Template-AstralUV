@@ -20,8 +20,9 @@ PyPI OIDC Trusted Publishing release automation. It provides management
 commands for upgrade, uninstall, and version reporting; an automatic
 new-version check throttled by an idle-time cache; self-upgrade from PyPI or
 from the latest GitHub tag via <code>--develop</code>; a dual-source version
-report (installed / PyPI / GitHub); and a JSON-configurable
-notification-color subsystem with validated, atomic persistence.
+report (installed / PyPI / GitHub); and a JSON configuration CLI
+(<code>version_check:disable-version-check</code>) with schema validation
+and atomic persistence.
 </p>
 
 <p align="center">
@@ -177,9 +178,9 @@ the latest release tag.
 
 | Command | Executed command |
 | --- | --- |
-| `--upgrade` | `uv tool install githubtemplateastraluv` |
+| `--upgrade` | `uv tool upgrade githubtemplateastraluv` |
 | `--upgrade --force` | `uv tool install githubtemplateastraluv --force --reinstall --refresh` |
-| `--upgrade --develop` | `uv tool install githubtemplateastraluv --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` |
+| `--upgrade --develop` | `uv tool install githubtemplateastraluv --reinstall --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` |
 | `--upgrade --develop --force` | `uv tool install githubtemplateastraluv --force --reinstall --refresh --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` |
 
 On non-Linux operating systems nothing is executed: the tool prints a warning
@@ -210,8 +211,8 @@ preserved if any step fails).
 ### Configuration commands
 
 Configuration paths are case-sensitive, colon-separated canonical tokens
-(`Section`, `Section:Parameter`); the schema currently defines no sections,
-so every canonical path is rejected.
+(`Section`, `Section:Parameter`); the schema defines the `version_check`
+section holding the `disable-version-check` Selection parameter.
 
 | Command | Behavior |
 | --- | --- |
@@ -229,9 +230,10 @@ githubtemplateastraluv --print
 githubtemplateastraluv --info
 githubtemplateastraluv --print-raw
 
-# The schema currently defines no sections: every canonical path is
-# rejected with exit status 1 and a stderr diagnostic.
-githubtemplateastraluv --get Notifications:new_version_color
+# Read, change, and restore the automatic version-check switch.
+githubtemplateastraluv --get version_check:disable-version-check
+githubtemplateastraluv --set version_check:disable-version-check yes
+githubtemplateastraluv --unset version_check:disable-version-check
 ```
 
 On any configuration failure the tool exits with code `1`, prints a

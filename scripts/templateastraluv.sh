@@ -4,31 +4,21 @@
 # AUTHORS: Ogekuri
 
 #/**
-# * @brief Capture invocation timestamp for optional logging or tracing.
-# * @details Single assignment; format `YYYY-MM-DD_HH-MM-SS` derived from system clock at startup.
-# * @satisfies REQ-026
-# */
-now=$(date '+%Y-%m-%d_%H-%M-%S')
-
-#/**
 # * @brief Resolve absolute path of executing script.
 # * @details Uses `readlink -f "$0"` to canonicalize all symlinks and relative components.
 # *          Result is stored for directory and name extraction.
-# * @satisfies REQ-026 REQ-030
 # */
 FULL_PATH=$(readlink -f "$0")
 
 #/**
 # * @brief Extract directory component of resolved script path.
 # * @details Derived from FULL_PATH via `dirname`. Used as SRC_DIR base.
-# * @satisfies REQ-026 REQ-030
 # */
 SCRIPT_PATH=$(dirname "$FULL_PATH")
 
 #/**
 # * @brief Extract filename component of resolved script path.
 # * @details Derived from FULL_PATH via `basename`. Available for diagnostics.
-# * @satisfies REQ-026
 # */
 SCRIPT_NAME=$(basename "$FULL_PATH")
 
@@ -43,7 +33,7 @@ BASE_DIR=$(dirname "$SCRIPT_PATH")
 ## @details Uses `git -C "${BASE_DIR}" rev-parse --show-toplevel` to determine
 ##          canonical project root from launcher base directory.
 ##          Exits non-zero with explicit error when root detection fails.
-## @satisfies REQ-034 REQ-007 DES-001
+## @satisfies PRJ-002
 ###############################################################################
 PROJECT_ROOT=$(git -C "${BASE_DIR}" rev-parse --show-toplevel 2>/dev/null)
 if [ -z "$PROJECT_ROOT" ]; then
@@ -56,7 +46,7 @@ fi
 ## @details Prevents mixed-root execution when script path and git root differ.
 ##          Fails fast with explicit diagnostics to preserve deterministic runtime
 ##          environment resolution for uv project execution.
-## @satisfies CTN-002
+## @satisfies PRJ-002
 ###############################################################################
 if [ "${PROJECT_ROOT}" != "${BASE_DIR}" ]; then
     echo "ERROR: Launcher base directory mismatch with git root."
@@ -69,15 +59,27 @@ fi
 ## @brief Resolve Astral uv executable name.
 ## @details Stores canonical command token used for runtime delegation.
 ##          Launcher requires uv to create and manage execution environment.
-## @satisfies CTN-002 CPT-005
 ###############################################################################
 UV_TOOL="uv"
 
+#/**
+# * @brief Validate uv availability before delegation.
+# * @details Aborts non-zero with an explicit stderr diagnostic naming the
+# *          missing tool when the Astral uv runtime is not reachable on PATH.
+# * @satisfies CTN-012
+# */
+if ! command -v uv > /dev/null 2>&1; then
+    echo "ERROR: Required tool not found: uv" >&2
+    exit 1
+fi
+
 ###############################################################################
 ## @brief Delegate CLI execution to Astral uv runtime.
-## @details Executes `uv run --project <BASE_DIR> python -m githubtemplateastraluv` and
-##          forwards all user CLI arguments unchanged. No `.venv` bootstrap,
+## @details Executes `uv run --frozen --project <BASE_DIR> python -m
+##          githubtemplateastraluv` and forwards all user CLI arguments
+##          unchanged. `--frozen` pins the locked dependency set so the
+##          tracked `uv.lock` is never rewritten. No `.venv` bootstrap,
 ##          activation, or pip installation logic is used.
-## @satisfies CTN-002 CPT-005 CPT-002
+## @satisfies PRJ-002 CTN-013
 ###############################################################################
-exec "${UV_TOOL}" run --project "${BASE_DIR}" python -m githubtemplateastraluv "$@"
+exec "${UV_TOOL}" run --frozen --project "${BASE_DIR}" python -m githubtemplateastraluv "$@"

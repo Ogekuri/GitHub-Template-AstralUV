@@ -7,8 +7,8 @@ paths only; no line numbers. Process IDs are stable.
 
 | ID | Type | Parent process | Role | Entrypoint symbol(s) | Defining file(s) |
 | --- | --- | --- | --- | --- | --- |
-| `PROC:launcher` | process | none (user shell) | Local-run wrapper resolving the project root and delegating to the uv runtime | `scripts/templateastraluv.sh` (bash top-level execution) | `scripts/templateastraluv.sh` |
-| `PROC:uv-runtime` | process | `PROC:launcher` | Transient uv process that resolves/creates the project virtual environment and launches the CLI | uv CLI argv: `run --project <BASE_DIR> python -m githubtemplateastraluv` | `scripts/templateastraluv.sh` |
+| `PROC:launcher` | process | none (user shell) | Local-run wrapper resolving the project root, validating `uv`, and delegating to the frozen uv runtime | `scripts/templateastraluv.sh` (bash top-level execution) | `scripts/templateastraluv.sh` |
+| `PROC:uv-runtime` | process | `PROC:launcher` | Transient uv process that resolves/creates the project virtual environment and launches the CLI | uv CLI argv: `run --frozen --project <BASE_DIR> python -m githubtemplateastraluv` | `scripts/templateastraluv.sh` |
 | `PROC:main` | process | `PROC:uv-runtime` (via launcher) or user interpreter | CLI application process: gated version check plus management-command and configuration-CLI dispatch | `githubtemplateastraluv.__main__:main`; module guard `python -m githubtemplateastraluv` | `src/githubtemplateastraluv/__main__.py`, `src/githubtemplateastraluv/core.py`, `src/githubtemplateastraluv/config.py`, `src/githubtemplateastraluv/config_render.py`, `src/githubtemplateastraluv/colors.py` |
 | `PROC:uv-tool-manage` | process | `PROC:main` | Transient child process executing `uv tool upgrade` (PyPI), `uv tool install --reinstall` (develop), `uv tool install` (forced variants), or `uv tool uninstall` (Linux only) | uv CLI argv from `UPGRADE_COMMAND` / `UPGRADE_FORCE_COMMAND` / `UPGRADE_DEVELOP_COMMAND` / `UPGRADE_DEVELOP_FORCE_COMMAND` / `UNINSTALL_COMMAND` | `src/githubtemplateastraluv/management.py` |
 | `PROC:build-tooling` | process | none (user shell) | Release-packaging wrapper validating the toolchain, restoring the clean startup state via `scripts/clean.sh`, pruning stale generated artifacts, and delegating the build | `scripts/build.sh` (bash top-level execution) | `scripts/build.sh` |
@@ -31,14 +31,15 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
 - Lifecycle/trigger: starts on user invocation of
   `scripts/templateastraluv.sh`; resolves the absolute script path, derives
   the base and project root directories, rejects execution when the base
-  directory differs from the git root, then replaces itself with the uv
-  runtime process via `exec` (or exits non-zero on root-resolution
-  failure).
+  directory differs from the git root, validates `uv` availability
+  (non-zero exit with a diagnostic when missing), then replaces itself
+  with the uv runtime process via `exec` running the locked environment
+  (`--frozen`; or exits non-zero on root-resolution or tool failure).
 - Internal Call-Trace Tree: no internal functions under `src/` (linear
   top-level shell script; no function definitions).
 - External Boundaries: `readlink -f`, `dirname`, `basename`, `git
-  rev-parse --show-toplevel`, `exec` process replacement, uv CLI
-  invocation, stderr diagnostics.
+  rev-parse --show-toplevel`, `command -v`, `exec` process replacement,
+  uv CLI invocation, stderr diagnostics.
 
 ### PROC:uv-runtime
 
@@ -93,7 +94,8 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
       - `version_check._fetch_latest_pypi_version(...)`: HTTPS GET of
         the latest PyPI version
         [`src/githubtemplateastraluv/version_check.py`]
-      - `version_check._parse_version(...)`: dotted-version compare key
+      - `version_check._parse_version(...)`: tolerant dotted-version
+        compare key built from leading-integer components
         [`src/githubtemplateastraluv/version_check.py`]
       - `version_check._report_failure(...)`: configured-color failure
         note plus 86400 s backoff cache
@@ -101,12 +103,14 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
         - `version_check._print_colored(...)`: ANSI-colored stdout print
           [`src/githubtemplateastraluv/version_check.py`]
         - `version_check._write_cache(...)`: persist four-field cache
+          (best effort, REQ-046)
           [`src/githubtemplateastraluv/version_check.py`]
           - `version_check._human_timestamp(...)`: UTC ISO-8601 rendering
             [`src/githubtemplateastraluv/version_check.py`]
       - `version_check._print_colored(...)`: configured-color availability
         note [`src/githubtemplateastraluv/version_check.py`]
       - `version_check._write_cache(...)`: 3600 s refresh cache
+        (best effort, REQ-046)
         [`src/githubtemplateastraluv/version_check.py`]
         - `version_check._human_timestamp(...)`
           [`src/githubtemplateastraluv/version_check.py`]
@@ -132,7 +136,7 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
         with aligned version columns
         [`src/githubtemplateastraluv/version_check.py`]
       - `version_check._write_cache(...)`: 3600 s / 86400 s cache driven
-        by the PyPI outcome only
+        by the PyPI outcome only (best effort, REQ-046)
         [`src/githubtemplateastraluv/version_check.py`]
         - `version_check._human_timestamp(...)`
           [`src/githubtemplateastraluv/version_check.py`]
@@ -236,6 +240,8 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
         tree [`src/githubtemplateastraluv/config_render.py`]
         - `config.resolve_segments(...)`
           [`src/githubtemplateastraluv/config.py`]
+        - `config.section(...)`: public schema section lookup
+          [`src/githubtemplateastraluv/config.py`]
         - `config_render.format_table(...)`: measured-width rounded
           box-drawing table with double-line header separator
           [`src/githubtemplateastraluv/config_render.py`]
@@ -260,6 +266,8 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
       - `config_render.build_info_root(...)`: build the documentation
         node tree [`src/githubtemplateastraluv/config_render.py`]
         - `config.resolve_segments(...)`
+          [`src/githubtemplateastraluv/config.py`]
+        - `config.section(...)`: public schema section lookup
           [`src/githubtemplateastraluv/config.py`]
         - `config.default_config(...)`
           [`src/githubtemplateastraluv/config.py`]
@@ -405,12 +413,12 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
 
 | # | Direction | Mechanism | Endpoint / Channel | Payload / Data shape | Declaration file path(s) |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `PROC:launcher` -> `PROC:uv-runtime` | process `exec` replacement, stdio inherited | uv CLI (`run --project`) | argv: base directory, `python -m githubtemplateastraluv`, user arguments | `scripts/templateastraluv.sh` |
+| 1 | `PROC:launcher` -> `PROC:uv-runtime` | process `exec` replacement, stdio inherited | uv CLI (`run --frozen --project`) | argv: base directory, `--frozen`, `python -m githubtemplateastraluv`, user arguments | `scripts/templateastraluv.sh` |
 | 2 | `PROC:uv-runtime` -> `PROC:main` | child-process spawn, stdio inherited | `python -m githubtemplateastraluv` execution | argv passthrough; CLI exit status returned to uv | `scripts/templateastraluv.sh`, `src/githubtemplateastraluv/__main__.py` |
 | 3 | `PROC:main` -> `PROC:uv-tool-manage` | `subprocess.run` spawn, stdio inherited | uv CLI `tool upgrade` / `tool install` / `tool uninstall` | `UPGRADE_COMMAND` / `UPGRADE_FORCE_COMMAND` / `UPGRADE_DEVELOP_COMMAND` / `UPGRADE_DEVELOP_FORCE_COMMAND` / `UNINSTALL_COMMAND` argv; `returncode` propagated | `src/githubtemplateastraluv/management.py` |
 | 4 | `PROC:main` -> PyPI (network) | HTTPS GET via `urllib.request.urlopen`, 2 s timeout | `https://pypi.org/pypi/githubtemplateastraluv/json` | JSON object with `info.version` latest published version | `src/githubtemplateastraluv/version_check.py` |
 | 5 | `PROC:main` -> GitHub API (network) | HTTPS GET via `urllib.request.urlopen`, 2 s timeout | `https://api.github.com/repos/Ogekuri/GitHub-Template-AstralUV/releases/latest` | JSON object with `tag_name` release tag | `src/githubtemplateastraluv/version_check.py` |
-| 6 | `PROC:main` -> filesystem (cache) | JSON file read/write with parent-directory creation | `$HOME/.cache/githubtemplateastraluv/check_version_idle-time.json` | four-field JSON: `last_check_epoch`, `last_check_human`, `idle_time_epoch`, `idle_time_human` | `src/githubtemplateastraluv/version_check.py` |
+| 6 | `PROC:main` -> filesystem (cache) | JSON file read/write with parent-directory creation (best-effort write, REQ-046) | `$HOME/.cache/githubtemplateastraluv/check_version_idle-time.json` | four-field JSON: `last_check_epoch`, `last_check_human`, `idle_time_epoch`, `idle_time_human` | `src/githubtemplateastraluv/version_check.py` |
 | 7 | `PROC:main` -> stdout | `print()` (optionally ANSI SGR configured colors, default bright green 92 / bright red 91) | console stdout | help screen text, three-row aligned version report, availability/error notifications, configuration JSON (`--get`), configuration trees (`--print`/`--info`), raw file bytes (`--print-raw`) | `src/githubtemplateastraluv/core.py`, `src/githubtemplateastraluv/management.py`, `src/githubtemplateastraluv/version_check.py`, `src/githubtemplateastraluv/config.py`, `src/githubtemplateastraluv/config_render.py` |
 | 8 | `PROC:launcher` -> stderr | shell `echo` diagnostics | console stderr | project-root resolution errors | `scripts/templateastraluv.sh` |
 | 9 | `PROC:main` -> filesystem (configuration) | JSON file read/write with parent-directory creation, temporary-file fsync, and `os.replace` atomic swap | `$HOME/.config/githubtemplateastraluv/config.json` | validated schema JSON object (`version_check` section with the `disable-version-check` switch; also read tolerantly at startup before dispatch); raw bytes for `--print-raw` | `src/githubtemplateastraluv/config.py` |
