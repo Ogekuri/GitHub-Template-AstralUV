@@ -1,6 +1,24 @@
 # Changelog
 
-## [0.0.6](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.6) - 2026-11-20
+## [0.0.7](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.7) - 2026-11-23
+### ⛰️  Features
+- Add disable-version-check config switch for the online check [useReq] *(version-check)*
+  REQUIREMENTS.md: add REQ-042..REQ-045 defining the
+  version_check:disable-version-check Selection parameter (default no),
+  startup-check suppression (REQ-043), tolerant missing/invalid
+  configuration handling (REQ-044), and the always-active --ver /
+  --version report (REQ-045); adapt REQ-007, TST-008, TST-010; add
+  TST-025, TST-026.
+  config.py: add the version_check schema section and the tolerant
+  runtime reader version_check_disabled().
+  core.py: skip the gated pre-dispatch PyPI check only when the switch
+  is enabled; --ver/--version remain active.
+  config_render.py: make the --info Meaning column schema-generic for
+  non-palette enum tokens (DES-010).
+  tests: new switch-suppression, tolerance, report-always-active, and
+  config CLI round-trip cases; golden trees updated to the schema shape
+  (49 passed, ruff clean).
+
 ### 🏗️  Implementations
 - implement CLI app, version check, tests, and runtime docs [useReq] *(core)*
   Implement the SRS end-to-end from the extracted skeleton:
@@ -55,6 +73,8 @@
 - Fix clean.sh script.
 
 ### 🚜  Changes
+- harden version check, docs, packaging and template tooling [useReq] *(core)*
+  Requirements: add REQ-046/047, CTN-012/013, DES-057..060, TST-027..032; fix DES-002 workflow name, DES-003 single entry point, DES-009 layout, CTN-002 substitution list (drop .g.conf).; Source: best-effort cache writes (REQ-046), tolerant version parsing (REQ-047), public config.section API (DES-058), launcher uv guard and --frozen delegation, setuptools>=77 floor, single console script.; Docs: README command tables and configuration section corrected; WORKFLOW.md and REFERENCES.md regenerated.; Tests: cover TST-009, TST-011, TST-016..TST-020, TST-024, TST-027..032 (64 passed).
 - Update .galias.conf file. *(config)*
 - Upgrade uv.lock file. *(config)*
 - BREAKING CHANGE: upgrade installed tool via uv tool upgrade [useReq] *(cli)*
@@ -130,6 +150,6 @@
 
 # History
 
-- \[0.0.6\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.6
+- \[0.0.7\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.7
 
-[0.0.6]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.6
+[0.0.7]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.7
