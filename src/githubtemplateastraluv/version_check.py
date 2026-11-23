@@ -285,6 +285,10 @@ def run_version_check(installed_version: str, force: bool = False) -> None:
     @param installed_version {str} Installed version in `x.y.z` format.
     @param force {bool} True bypasses the idle-time gate (REQ-002,
            REQ-007).
+    @note The caller in `core.main` suppresses this call when the
+          configuration switch `version_check:disable-version-check` is
+          enabled (REQ-043); `--ver` / `--version` run the report instead
+          and stay active regardless of the switch (REQ-045).
     @return {None}
     @satisfies REQ-007 REQ-008 REQ-009 REQ-010 REQ-011 REQ-012 REQ-013
                REQ-014 REQ-015 REQ-026

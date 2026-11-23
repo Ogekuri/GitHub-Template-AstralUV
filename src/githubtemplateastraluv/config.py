@@ -5,8 +5,10 @@
 # @details Single source of truth driving parsing, validation, defaults,
 #          path discovery, and configuration output (DES-010). State
 #          persists as JSON at `$HOME/.config/githubtemplateastraluv/
-#          config.json`. Version-check transport parameters stay hardcoded
-#          (CTN-008) and are not part of the schema. Handlers emit valid
+#          config.json`. Version-check transport parameters (endpoint,
+#          timeout, idle-delays) stay hardcoded (CTN-008) and are not part
+#          of the schema; the automatic-check enable/disable switch is
+#          schema state (REQ-042). Handlers emit valid
 #          output on stdout only, report failures on stderr with exit
 #          status 1, and never mutate state on rejected operations
 #          (REQ-023).
@@ -83,12 +85,48 @@ class SectionSpec:
         return None
 
 
+## @brief Canonical token of the version-check schema section.
+_VERSION_CHECK_SECTION_TOKEN: str = "version_check"
+
+## @brief Canonical token of the automatic-check suppression parameter.
+_DISABLE_VERSION_CHECK_PARAM_TOKEN: str = "disable-version-check"
+
+## @brief Ordered allowed values of the suppression parameter (Selection).
+_DISABLE_VERSION_CHECK_ENUM: tuple[str, ...] = ("no", "yes")
+
+## @brief Enum token suppressing the automatic online check (REQ-043).
+_DISABLE_VERSION_CHECK_ENABLED_VALUE: str = "yes"
+
+## @brief Schema default keeping the automatic online check enabled.
+_DISABLE_VERSION_CHECK_DEFAULT_VALUE: str = "no"
+
+
 ## @brief Canonical configuration schema (DES-010).
 # @details Insertion order defines canonical display order. The schema
-#          currently defines no sections: notification colors are
-#          hardcoded in the embedded internal color JSON of `colors.py`
-#          (REQ-040), so every canonical path is rejected (REQ-022).
-SCHEMA: tuple[SectionSpec, ...] = ()
+#          defines the `version_check` section holding the
+#          `disable-version-check` Selection switch (REQ-042); transport
+#          parameters stay hardcoded constants (CTN-008) and notification
+#          colors stay hardcoded in the embedded internal color JSON of
+#          `colors.py` (REQ-040).
+SCHEMA: tuple[SectionSpec, ...] = (
+    SectionSpec(
+        token=_VERSION_CHECK_SECTION_TOKEN,
+        description="Online version check executed before argument parsing.",
+        params=(
+            ParamSpec(
+                token=_DISABLE_VERSION_CHECK_PARAM_TOKEN,
+                type_label="Selection",
+                description=(
+                    "Disable the automatic online version check executed"
+                    " before argument parsing; --ver and --version stay"
+                    " active."
+                ),
+                default=_DISABLE_VERSION_CHECK_DEFAULT_VALUE,
+                enum=_DISABLE_VERSION_CHECK_ENUM,
+            ),
+        ),
+    ),
+)
 
 ## @brief Schema token to SectionSpec index for O(1) path resolution.
 _SECTIONS_BY_TOKEN: dict[str, SectionSpec] = {
@@ -333,6 +371,31 @@ def load_display() -> dict[str, dict[str, str]]:
             for param in section.params
         }
     return display
+
+
+def version_check_disabled() -> bool:
+    """@brief Report whether the automatic version check is disabled.
+
+    @details Tolerant runtime reader (REQ-044): loads the schema-shaped
+             display view and compares the `disable-version-check` value
+             against the enabling enum token. An absent, unreadable,
+             malformed, or non-object configuration file yields False
+             (schema default: check enabled); unknown persisted keys are
+             dropped by the loader, so stale-schema content never enables
+             the suppression (REQ-042, TST-008).
+    @return {bool} True only when `version_check:disable-version-check`
+            equals the enabling enum token; False otherwise.
+    @satisfies REQ-042 REQ-043 REQ-044
+    """
+    try:
+        payload = load_display()
+    except ConfigError:
+        return False
+    section = payload.get(_VERSION_CHECK_SECTION_TOKEN, {})
+    return (
+        section.get(_DISABLE_VERSION_CHECK_PARAM_TOKEN)
+        == _DISABLE_VERSION_CHECK_ENABLED_VALUE
+    )
 
 
 def resolve_segments(path: str) -> tuple[str, ...]:

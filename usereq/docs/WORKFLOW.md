@@ -56,18 +56,30 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
 - Entrypoint(s): console-script entry `githubtemplateastraluv.__main__:main`
   and the module guard in `src/githubtemplateastraluv/__main__.py`
   (`sys.exit(main())`).
-- Lifecycle/trigger: starts on CLI invocation; optionally runs the gated
-  online version check before dispatch (dual-source version report
-  variant for `--ver` / `--version`), prints help, prints the aligned
+- Lifecycle/trigger: starts on CLI invocation; runs the gated
+  online version check before dispatch unless the configuration
+  switch `version_check:disable-version-check` is enabled (REQ-043;
+  the dual-source version report variant for `--ver` / `--version`
+  always executes, independent of the switch and the gate), prints
+  help, prints the aligned
   three-row version report, executes install/uninstall management
   commands with the `--develop` and `--force` upgrade modifiers,
   executes the configuration CLI commands
   (`--get`, `--set`, `--unset`, `--print-raw`, `--print`, `--info`),
   and terminates through `sys.exit` with the dispatcher return code.
 - Internal Call-Trace Tree (internal functions only, call order):
-  - `main(...)`: gated check, then command dispatch
-    [`src/githubtemplateastraluv/core.py`]
+  - `main(...)`: disable-switch evaluation, gated check, then command
+    dispatch [`src/githubtemplateastraluv/core.py`]
+    - `config.version_check_disabled(...)`: tolerant disable-switch
+      reader for the automatic check (REQ-042..REQ-044; absent,
+      unreadable, malformed, or non-object configuration keeps the
+      check enabled) [`src/githubtemplateastraluv/config.py`]
+      - `config.load_display(...)`: schema-shaped display-view loader
+        [`src/githubtemplateastraluv/config.py`]
+        - `config._read_payload(...)`: read and parse the configuration
+          JSON document [`src/githubtemplateastraluv/config.py`]
     - `version_check.run_version_check(...)`: online check orchestration
+      (skipped when the disable switch is enabled)
       [`src/githubtemplateastraluv/version_check.py`]
       - `colors.notification_colors(...)`: hardcoded ANSI prefixes from
         the embedded internal color JSON
@@ -99,8 +111,9 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
         - `version_check._human_timestamp(...)`
           [`src/githubtemplateastraluv/version_check.py`]
     - `version_check.run_version_report(...)`: forced dual-source version
-      report for `--ver` / `--version`, gate and cache-file reads
-      bypassed [`src/githubtemplateastraluv/version_check.py`]
+      report for `--ver` / `--version`; gate, cache-file reads, and the
+      disable switch all bypassed (REQ-045)
+      [`src/githubtemplateastraluv/version_check.py`]
       - `colors.notification_colors(...)`: hardcoded ANSI prefixes from
         the embedded internal color JSON (same node as under
         `run_version_check`) [`src/githubtemplateastraluv/colors.py`]
@@ -400,7 +413,7 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
 | 6 | `PROC:main` -> filesystem (cache) | JSON file read/write with parent-directory creation | `$HOME/.cache/githubtemplateastraluv/check_version_idle-time.json` | four-field JSON: `last_check_epoch`, `last_check_human`, `idle_time_epoch`, `idle_time_human` | `src/githubtemplateastraluv/version_check.py` |
 | 7 | `PROC:main` -> stdout | `print()` (optionally ANSI SGR configured colors, default bright green 92 / bright red 91) | console stdout | help screen text, three-row aligned version report, availability/error notifications, configuration JSON (`--get`), configuration trees (`--print`/`--info`), raw file bytes (`--print-raw`) | `src/githubtemplateastraluv/core.py`, `src/githubtemplateastraluv/management.py`, `src/githubtemplateastraluv/version_check.py`, `src/githubtemplateastraluv/config.py`, `src/githubtemplateastraluv/config_render.py` |
 | 8 | `PROC:launcher` -> stderr | shell `echo` diagnostics | console stderr | project-root resolution errors | `scripts/templateastraluv.sh` |
-| 9 | `PROC:main` -> filesystem (configuration) | JSON file read/write with parent-directory creation, temporary-file fsync, and `os.replace` atomic swap | `$HOME/.config/githubtemplateastraluv/config.json` | validated schema-empty JSON object; raw bytes for `--print-raw` | `src/githubtemplateastraluv/config.py` |
+| 9 | `PROC:main` -> filesystem (configuration) | JSON file read/write with parent-directory creation, temporary-file fsync, and `os.replace` atomic swap | `$HOME/.config/githubtemplateastraluv/config.json` | validated schema JSON object (`version_check` section with the `disable-version-check` switch; also read tolerantly at startup before dispatch); raw bytes for `--print-raw` | `src/githubtemplateastraluv/config.py` |
 | 10 | `PROC:main` -> stderr | `print(..., file=sys.stderr)` | console stderr | `Error: ...` configuration diagnostics with exit status 1 | `src/githubtemplateastraluv/config.py`, `src/githubtemplateastraluv/config_render.py` |
 | 11 | `PROC:build-tooling` -> `PROC:uv-build-runtime` | child-process spawn, stdio inherited | uv CLI `run --frozen --with build python -m build` | argv with repository-root cwd; generated sdist/wheel in `dist/`; `returncode` propagated | `scripts/build.sh` |
 | 12 | `PROC:build-tooling` -> filesystem (dist/) | targeted file delete plus build-backend writes | `<repo root>/dist/` | stale `*.tar.gz`/`*.tgz`/`*.whl`/`*.zip` removal before build; fresh sdist and wheel preserved after build | `scripts/build.sh` |

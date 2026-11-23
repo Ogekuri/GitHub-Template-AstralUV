@@ -22,7 +22,7 @@
 #            (subprocess.run mocked), wall clock (tolerance-bounded
 #            assertions on the 3600/86400 second deltas).
 #          - Stale-schema rendering reproducer: `--print` and `--info`
-#            render the schema-empty tree from a configuration file
+#            render the schema-shaped tree from a configuration file
 #            persisted by an older schema version (DES-010, TST-008;
 #            REQ-019, REQ-023).
 #          - Contract checks (TST-012..TST-015): action pins and job
@@ -52,6 +52,7 @@ import zipfile
 
 import pytest
 
+import githubtemplateastraluv.config as config
 import githubtemplateastraluv.config_render as config_render
 import githubtemplateastraluv.core as core
 import githubtemplateastraluv.management as management
@@ -152,6 +153,20 @@ def _write_cache(home, idle_epoch):
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _write_config(home, payload_text):
+    """@brief Seed the global configuration file inside an isolated home.
+
+    @param home {Path} Isolated home directory.
+    @param payload_text {str} Exact JSON text to persist.
+    @return {Path} Configuration file path `home/.config/
+            githubtemplateastraluv/config.json`.
+    """
+    path = home / ".config" / "githubtemplateastraluv" / "config.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(payload_text, encoding="utf-8")
+    return path
+
+
 def _mock_urlopen(payload):
     """@brief Build a patched `urlopen` returning one static payload.
 
@@ -230,6 +245,102 @@ def test_ver_report_prints_aligned_rows_despite_fresh_cache(
             expected_exception = none.
     """
     _write_cache(isolated_home, time.time() + 9999)
+    urlopen_mock = _mock_urlopen_by_url(
+        {
+            EXPECTED_PYPI_ENDPOINT: {"info": {"version": "9.9.9"}},
+            EXPECTED_GITHUB_ENDPOINT: {"tag_name": "v8.8.8"},
+        }
+    )
+    with mock.patch.object(
+        version_check.urllib.request, "urlopen", urlopen_mock
+    ):
+        exit_code = core.main(["--ver"])
+    out = capsys.readouterr().out
+    assert exit_code == 0
+    assert out == (
+        f"Current Installed : {core.__version__}\n"
+        "Latest @ PyPI     : 9.9.9\n"
+        "Latest @ GitHub   : 8.8.8\n"
+    )
+    assert urlopen_mock.call_count == 2
+    _assert_cache_fields(isolated_home, 3600)
+
+
+def test_disable_version_check_yes_skips_gated_check(
+    isolated_home, capsys
+):
+    """@brief TST-025: the disable switch suppresses the gated check.
+
+    @details UUT: core.main (L1 composed). expected_output = exit 0, the
+            exact help screen on stdout, zero urlopen calls, no cache
+            file, and no run_version_check execution with
+            `version_check:disable-version-check = yes` (REQ-042,
+            REQ-043); expected_exception = none.
+    """
+    _write_config(
+        isolated_home,
+        '{"version_check": {"disable-version-check": "yes"}}\n',
+    )
+    assert config.version_check_disabled() is True
+    with mock.patch.object(
+        version_check, "run_version_check"
+    ) as check_mock:
+        with mock.patch.object(
+            version_check.urllib.request, "urlopen"
+        ) as urlopen_mock:
+            exit_code = core.main([])
+    assert exit_code == 0
+    assert capsys.readouterr().out == EXPECTED_HELP_TEXT + "\n"
+    check_mock.assert_not_called()
+    urlopen_mock.assert_not_called()
+    assert not _cache_file(isolated_home).exists()
+
+
+def test_disable_version_check_absent_or_malformed_keeps_check_enabled(
+    isolated_home,
+):
+    """@brief TST-025/REQ-044: tolerant default keeps the check enabled.
+
+    @details UUTs: core.main, config.version_check_disabled (L1
+            composed). expected_output = run_version_check executed once
+            per case (absent, malformed-JSON, non-object configuration)
+            and version_check_disabled() False in every case
+            (REQ-044); expected_exception = none.
+    """
+    with mock.patch.object(
+        version_check, "run_version_check"
+    ) as check_mock:
+        exit_code = core.main([])
+    assert exit_code == 0
+    check_mock.assert_called_once_with(core.__version__, False)
+    assert config.version_check_disabled() is False
+
+    for broken_payload in ("{not json", "[]"):
+        _write_config(isolated_home, broken_payload)
+        with mock.patch.object(
+            version_check, "run_version_check"
+        ) as check_mock:
+            core.main([])
+        check_mock.assert_called_once_with(core.__version__, False)
+        assert config.version_check_disabled() is False
+
+
+def test_ver_report_active_when_version_check_disabled(
+    isolated_home, capsys
+):
+    """@brief TST-026/REQ-045: --ver stays active with the switch enabled.
+
+    @details UUT: core.main (L1 composed). expected_output = exit 0, the
+            exact three aligned rows (REQ-027) with mocked PyPI and
+            GitHub payloads, both fetches executed, and the cache
+            refreshed 3600 s (REQ-031) even with
+            `version_check:disable-version-check = yes`;
+            expected_exception = none.
+    """
+    _write_config(
+        isolated_home,
+        '{"version_check": {"disable-version-check": "yes"}}\n',
+    )
     urlopen_mock = _mock_urlopen_by_url(
         {
             EXPECTED_PYPI_ENDPOINT: {"info": {"version": "9.9.9"}},
@@ -1272,20 +1383,65 @@ def test_build_script_delegates_prebuild_cleanup_before_any_build_action():
         assert "git reset --hard" not in script_text
 
 
-def test_print_and_info_render_schema_empty_tree_from_stale_schema_file(
+EXPECTED_PRINT_TREE_STALE_SCHEMA = "\n".join(
+    [
+        "Application_Configuration - Current configuration",
+        "└── version_check - [Path: version_check] Online version check"
+        " executed before argument parsing.",
+        "    └── disable-version-check = \"no\" (default)",
+        "        ╭─────┬───────╮",
+        "        │ Sel │ Value │",
+        "        ╞═════╪═══════╡",
+        "        │ [*] │ \"no\"  │",
+        "        ├─────┼───────┤",
+        "        │ [ ] │ \"yes\" │",
+        "        ╰─────┴───────╯",
+    ]
+)
+
+EXPECTED_INFO_TREE_STALE_SCHEMA = "\n".join(
+    [
+        "Application_Configuration - Configuration schema and command"
+        " reference",
+        "└── version_check - [Path: version_check] Online version check"
+        " executed before argument parsing.",
+        "    Full overwrite : --set version_check"
+        " '{\"disable-version-check\":\"no\"}'",
+        "    Reset block : --unset version_check",
+        "    └── disable-version-check - [Selection: 2 allowed values]"
+        " Disable the automatic online version check executed before"
+        " argument parsing; --ver and --version stay active.",
+        "        Default : \"no\" (restored via:"
+        " --unset version_check:disable-version-check)",
+        "        Set cmd : --set version_check:disable-version-check no",
+        "        Allowed Values:",
+        "        ╭───────┬─────────┬─────────╮",
+        "        │ Value │ Default │ Meaning │",
+        "        ╞═══════╪═════════╪═════════╡",
+        "        │ no    │ default │ -       │",
+        "        ├───────┼─────────┼─────────┤",
+        "        │ yes   │         │ -       │",
+        "        ╰───────┴─────────┴─────────╯",
+    ]
+)
+
+
+def test_print_and_info_render_schema_tree_from_stale_schema_file(
     isolated_home, capsys,
 ):
     """@brief Stale-schema reproducer: schema drift never blocks rendering.
 
     @details UUTs: config_render.handle_print, config_render.handle_info
             (L1 composed). expected_output = exit status 0 for both
-            commands, the schema-empty `Application_Configuration` golden
-            trees on stdout, empty stderr, and a byte-identical
+            commands, the schema-shaped `Application_Configuration`
+            golden trees on stdout, empty stderr, and a byte-identical
             configuration file; expected_exception = AssertionError.
             A file persisted by an older schema version (the removed
             Notifications section) is not schema-displayable (DES-010)
             and MUST NOT abort the schema-driven renderers: the golden
-            schema-empty output is mandated (TST-008, REQ-019, REQ-023).
+            schema-shaped output carrying the current `version_check`
+            schema section is mandated (TST-008, REQ-019, REQ-042,
+            REQ-023).
     @param isolated_home {Path} Fixture redirecting `$HOME` into tmp_path.
     @param capsys {pytest.CaptureFixture} Stdout/stderr capture.
     @return {None}
@@ -1305,9 +1461,53 @@ def test_print_and_info_render_schema_empty_tree_from_stale_schema_file(
 
     captured = capsys.readouterr()
     assert captured.out == (
-        "Application_Configuration - Current configuration\n"
-        "Application_Configuration - Configuration schema and command"
-        " reference\n"
+        EXPECTED_PRINT_TREE_STALE_SCHEMA
+        + "\n"
+        + EXPECTED_INFO_TREE_STALE_SCHEMA
+        + "\n"
     )
     assert captured.err == ""
     assert configuration_file.read_text(encoding="utf-8") == stale_payload
+
+
+def test_version_check_parameter_config_cli_round_trip(
+    isolated_home, capsys
+):
+    """@brief TST-010: canonical `version_check` paths round-trip.
+
+    @details UUTs: config.handle_set, config.handle_get,
+            config.handle_unset, config_render.handle_print (L1
+            composed). expected_output = `--set` exits 0 silently,
+            `--get` prints the JSON-quoted value, `--unset` exits 0
+            silently restoring the schema default, an unknown path exits
+            1 with an `Error: ` stderr diagnostic and empty stdout,
+            version_check_disabled() tracks the stored value (REQ-042,
+            REQ-043), and `--print` renders the parameter;
+            expected_exception = none.
+    """
+    config.ensure_bootstrapped()
+    assert config.handle_set(
+        ["--set", "version_check:disable-version-check", "yes"]
+    ) == 0
+    assert config.handle_get(
+        ["--get", "version_check:disable-version-check"]
+    ) == 0
+    assert capsys.readouterr().out == "\"yes\"\n"
+    assert config.version_check_disabled() is True
+
+    assert config.handle_unset(
+        ["--unset", "version_check:disable-version-check"]
+    ) == 0
+    assert config.handle_get(
+        ["--get", "version_check:disable-version-check"]
+    ) == 0
+    assert capsys.readouterr().out == "\"no\"\n"
+    assert config.version_check_disabled() is False
+
+    assert config.handle_get(["--get", "nosuchsection"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.startswith("Error: ")
+
+    assert config_render.handle_print(["--print"]) == 0
+    assert "disable-version-check" in capsys.readouterr().out

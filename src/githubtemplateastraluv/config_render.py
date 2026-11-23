@@ -214,12 +214,21 @@ def _selection_rows(param: config.ParamSpec, current: str) -> list[list[str]]:
 
 
 def _color_meaning(token: str) -> str:
-    """@brief Build the Meaning cell text for one enum color token.
+    """@brief Build the Meaning cell text for one enum token.
 
-    @param token {str} Selection enum token present in `colors.PALETTE`.
-    @return {str} Text naming the ANSI SGR code and human-readable color.
+    @details Tokens present in `colors.PALETTE` (REQ-040) render the ANSI
+             SGR code and color name; non-palette tokens degrade to a
+             neutral `-` cell so the Allowed Values table stays
+             schema-generic for every Selection parameter (DES-010).
+    @param token {str} Selection enum token of the documented parameter.
+    @return {str} `ANSI SGR <code> (<color name>)` for palette tokens;
+            `-` otherwise.
+    @satisfies DES-010 REQ-042
     """
-    sgr = colors.PALETTE[token][2:-1]
+    palette_entry = colors.PALETTE.get(token)
+    if palette_entry is None:
+        return "-"
+    sgr = palette_entry[2:-1]
     return f"ANSI SGR {sgr} ({token.replace('_', ' ')})"
 
 
