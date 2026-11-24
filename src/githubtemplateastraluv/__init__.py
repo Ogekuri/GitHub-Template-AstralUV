@@ -8,7 +8,7 @@
 #          checks; single source of truth consumed by core.main dispatch
 #          and mirrored in pyproject.toml, scripts/templateastraluv.sh,
 #          README.md, and uv.lock.
-__version__ = "0.0.7"
+__version__ = "0.0.8"
 
 from githubtemplateastraluv.core import main  # noqa: F401
 

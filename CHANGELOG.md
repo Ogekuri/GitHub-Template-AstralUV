@@ -1,7 +1,18 @@
 # Changelog
 
-## [0.0.7](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.7) - 2026-11-23
+## [0.0.8](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.8) - 2026-11-24
 ### ⛰️  Features
+- Add .galias.conf file.
+- add one-shot template rename script with sandbox pytest [useReq] *(rename-me)*
+  Add scripts/rename-me.sh (PRJ-010): parameter validation (DES-062/063),
+  ordered string substitutions (DES-064/065), deepest-first path renames
+  (DES-066), publish-action publishname pre-pass (DES-067), residual
+  verification and self-removal on success (DES-068/069).
+  Add tests/test_rename_me.py (TST-033/034): complete seven-parameter
+  rename over a temp/ sandbox copy, optional-parameter preservation,
+  missing-parameter failure before any mutation.
+  Extend the SRS with the rename-instantiation mapping, A-14/A-15, the
+  CTN-014 maintenance mandate, and the PROC:rename-tooling runtime unit.
 - Add disable-version-check config switch for the online check [useReq] *(version-check)*
   REQUIREMENTS.md: add REQ-042..REQ-045 defining the
   version_check:disable-version-check Selection parameter (default no),
@@ -32,6 +43,10 @@
   model and REFERENCES.md refreshed.
 
 ### 🐛  Bug Fixes
+- derive TST-016 dist artifact names from declared version [useReq] *(tests)*
+  TST-016 (DES-021..DES-025, DES-052) asserted hardcoded 0.0.6 wheel/sdist names and failed after the 0.0.7 release bump (1 failed / 66 passed in the pre-release gate).
+  Derive the expected dist/ artifact pair from the sandbox pyproject.toml project.version via the module tomllib pattern, matching the test's declared-version contract. Test-only change; requirements unchanged.
+  Verified: uv run pytest -q -> 67 passed; scripts/pre-release-check.sh -> all pre-release checks passed; repository left clean.
 - rebuild stale 0.0.4 release artifacts to 0.0.5 [useReq] *(dist)*
   pyproject.toml declared version 0.0.5 while the git-tracked dist/ artifacts still embedded Version 0.0.4; a 0.0.5 tag would have published the stale pair verbatim via OIDC trusted publishing (DES-017, DES-042). Regenerated the sdist and wheel via scripts/build.sh (clean startup state, stale prune, frozen build). Full pytest suite passes (45 passed); pre-release check exits 0 with a clean tree.
 - Update version number. *(config)*
@@ -73,6 +88,8 @@
 - Fix clean.sh script.
 
 ### 🚜  Changes
+- install --upgrade --develop from GitHub develop branch [useReq] *(management)*
+  REQ-032/REQ-036 now mandate the develop branch head via git+...AstralUV.git@develop. UPGRADE_DEVELOP_COMMAND and UPGRADE_DEVELOP_FORCE_COMMAND updated accordingly; README command rows and version-report docstrings aligned (DES-019, DES-059); exact-argv test assertions updated (TST-003, TST-014, TST-032).
 - harden version check, docs, packaging and template tooling [useReq] *(core)*
   Requirements: add REQ-046/047, CTN-012/013, DES-057..060, TST-027..032; fix DES-002 workflow name, DES-003 single entry point, DES-009 layout, CTN-002 substitution list (drop .g.conf).; Source: best-effort cache writes (REQ-046), tolerant version parsing (REQ-047), public config.section API (DES-058), launcher uv guard and --frozen delegation, setuptools>=77 floor, single console script.; Docs: README command tables and configuration section corrected; WORKFLOW.md and REFERENCES.md regenerated.; Tests: cover TST-009, TST-011, TST-016..TST-020, TST-024, TST-027..032 (64 passed).
 - Update .galias.conf file. *(config)*
@@ -150,6 +167,6 @@
 
 # History
 
-- \[0.0.7\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.7
+- \[0.0.8\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.8
 
-[0.0.7]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.7
+[0.0.8]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.8
