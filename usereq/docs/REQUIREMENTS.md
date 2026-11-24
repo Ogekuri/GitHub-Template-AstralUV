@@ -16,11 +16,11 @@ This document MUST follow these authoring rules (LLM-first, normative SRS):
   - Do NOT add YAML front matter or in-document revision history; use git history / CHANGELOG.md for change tracking.
 
 ### 1.2 Project Scope
-Project `githubtemplateastraluv`: a Python CLI application published on PyPI (`https://pypi.org/project/githubtemplateastraluv/`) and distributed as an Astral UV tool via `uv tool install githubtemplateastraluv` or executed on-the-fly via `uvx`; `git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` remains the optional development source of the `--upgrade --develop` variant; the repository doubles as the GitHub template `Ogekuri/GitHub-Template-AstralUV` ("GitHub template for Astral-UV app", author Francesco Rolando).
+Project `githubtemplateastraluv`: a Python CLI application published on PyPI (`https://pypi.org/project/githubtemplateastraluv/`) and distributed as an Astral UV tool via `uv tool install githubtemplateastraluv` or executed on-the-fly via `uvx`; `git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` remains the optional development source of the `--upgrade --develop` variant; the repository doubles as the GitHub template `Ogekuri/GitHub-Template-AstralUV` ("GitHub template for Astral-UV app", author Francesco Rolando); `scripts/rename-me.sh` instantiates a copied template into a renamed project across file contents, filenames, and paths.
 
 Interface: text-only CLI in English; no GUI functionality is requested. Functional areas: management commands (`--help`, `--ver`, `--version`, `--upgrade`, `--uninstall`, with the `--develop` source modifier of `--upgrade`) independent from core logic; automatic online new-version check against PyPI throttled by an idle-time JSON cache; `--ver` dual-source report covering PyPI and GitHub; colored console notifications. Configurability: version-check parameters (endpoint, timeout, and idle-delays) remain hardcoded constants and stay unexposed (CTN-008); the automatic online check itself is switchable through the schema parameter `version_check:disable-version-check` (REQ-042..REQ-045); the cache location derives from the `$HOME` environment variable; notification colors are hardcoded in the embedded internal color JSON of the dedicated module `colors.py` (REQ-040); a JSON configuration CLI (`--get`, `--set`, `--unset`, `--print`, `--info`, `--print-raw`) persists schema state at `$HOME/.config/githubtemplateastraluv/config.json`. No application project-local configuration layer exists. Performance constraints: HTTPS timeout of 2 seconds; cache gating avoids redundant network calls.
 
-Component model: the CLI entry `src/githubtemplateastraluv/__main__.py` dispatches to management commands and core logic; a dedicated version-check component performs the HTTPS queries (PyPI JSON API for the gated check and the report, GitHub releases API for the report), cache persistence, and notification rendering before argument parsing; `scripts/templateastraluv.sh` wraps local execution. Repository tooling: `scripts/build.sh` packages the release into `dist/`, `scripts/clean.sh` removes every repository-internal execution-generated artifact so consecutive builds start from the identical state, and `scripts/pre-release-check.sh` verifies release readiness.
+Component model: the CLI entry `src/githubtemplateastraluv/__main__.py` dispatches to management commands and core logic; a dedicated version-check component performs the HTTPS queries (PyPI JSON API for the gated check and the report, GitHub releases API for the report), cache persistence, and notification rendering before argument parsing; `scripts/templateastraluv.sh` wraps local execution. Repository tooling: `scripts/build.sh` packages the release into `dist/`, `scripts/clean.sh` removes every repository-internal execution-generated artifact so consecutive builds start from the identical state, and `scripts/pre-release-check.sh` verifies release readiness; `scripts/rename-me.sh` performs the one-shot template instantiation rename.
 
 Keyword substitution mapping (skeleton initialization):
 
@@ -33,6 +33,18 @@ Keyword substitution mapping (skeleton initialization):
 | `%SRCDIR%` | githubtemplateastraluv |
 | `%OWNER%` | Ogekuri |
 | `%REPOSITORY%` | GitHub-Template-AstralUV |
+
+Rename-instantiation mapping (`scripts/rename-me.sh`; literal source strings; a source string is active when its target value differs from it):
+
+| Parameter | Source string occurrence |
+| --- | --- |
+| `--description` (mandatory) | `GitHub template for Astral-UV app` |
+| `--program` (mandatory) | `githubtemplateastraluv` |
+| `--shortname` (mandatory) | `templateastraluv` |
+| `--repository` (mandatory) | `GitHub-Template-AstralUV` |
+| `--publishname` (mandatory) | program name inside `.github/workflows/release-pypi.yml` (A-15) |
+| `--author` (optional) | `Francesco Rolando` |
+| `--owner` (optional) | `Ogekuri` |
 
 Assumptions (non-normative; reversible interpretations of unspecified details):
 - **A-01**: The literal `(x.y.z)` in the help usage line is a runtime placeholder for the current installed version; all remaining help text is printed verbatim.
@@ -48,6 +60,8 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **A-11**: The console-script entry point name equals `%PROGRAM%` (`githubtemplateastraluv`).
 - **A-12**: The renamed skeleton copy (`src/templateastraluv/`) and the distributed application sources (`src/githubtemplateastraluv/`) coexist as prescribed by the user request.
 - **A-13**: The GitHub breaking change rolling the `ubuntu-latest` label to Ubuntu 26.04 (October 19 - November 19, 2026) is mitigated by pinning the release-workflow runner to the explicit `ubuntu-24.04` label (behavior-preserving mitigation) instead of adopting `ubuntu-26.04`.
+- **A-14**: After `scripts/rename-me.sh` execution, `uv.lock` may hold stale package names and hashes; refreshing it via `uv lock` is a post-rename user step outside the script scope.
+- **A-15**: The current `.github/workflows/release-pypi.yml` contains no program-name occurrence; the `--publishname` substitution is defined as a pre-pass over that file and is a no-op until such an occurrence exists, while the PyPI distribution name in `pyproject.toml` remains driven by `program`.
 
 ## 2. Project Requirements
 
@@ -61,6 +75,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **PRJ-007**: MUST provide `scripts/build.sh`, an executable Bash script generating the complete distribution package with the project's native build tooling into `dist/`.
 - **PRJ-008**: MUST provide `scripts/pre-release-check.sh`, an executable Bash script performing the full release-readiness verification and leaving no generated artifacts in the repository.
 - **PRJ-009**: MUST provide `scripts/clean.sh`, an executable Bash script removing every repository-internal execution-generated temporary artifact while preserving tracked content and release artifacts.
+- **PRJ-010**: MUST provide `scripts/rename-me.sh`, an executable Bash script renaming a template copy across file contents, filenames, and paths to the target project names.
 
 ### 2.2 Project Constraints
 - **CTN-001**: MUST initialize the repository by extracting `../skell.tgz` into the working directory, overwriting existing files and preserving empty directories.
@@ -76,6 +91,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **CTN-011**: MUST NOT execute destructive git commands (`git clean -fdx`, `git reset --hard`) inside `scripts/build.sh`, `scripts/clean.sh`, or `scripts/pre-release-check.sh`.
 - **CTN-012**: MUST validate `uv` availability in `scripts/templateastraluv.sh` before delegation and terminate non-zero with a diagnostic naming `uv` when missing.
 - **CTN-013**: MUST delegate from `scripts/templateastraluv.sh` through `uv run --frozen --project`, never rewriting the tracked `uv.lock`.
+- **CTN-014**: MUST re-verify `scripts/rename-me.sh` at every source change, updating its substitution coverage when sources add or remove template-string occurrences, and MUST re-execute its test.
 
 ## 3. Requirements
 
@@ -102,6 +118,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 │   ├── build.sh
 │   ├── clean.sh
 │   ├── pre-release-check.sh
+│   ├── rename-me.sh
 │   └── templateastraluv.sh
 ├── src/
 │   ├── githubtemplateastraluv/
@@ -117,7 +134,8 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 │       ├── __main__.py
 │       └── core.py
 ├── tests/
-│   └── test_githubtemplateastraluv.py
+│   ├── test_githubtemplateastraluv.py
+│   └── test_rename_me.py
 └── usereq/
     └── docs/
         └── REQUIREMENTS.md
@@ -173,6 +191,15 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **DES-058**: MUST expose schema section lookup through a public `config` API consumed by `config_render`, without accessing module-private schema indices.
 - **DES-059**: MUST keep every README.md executed-command row byte-identical to the exact argv mandated by REQ-003, REQ-032, REQ-035, and REQ-036.
 - **DES-060**: MUST keep README.md configuration and color documentation consistent with the canonical schema (REQ-042) and the hardcoded color policy (REQ-040, CTN-008).
+- **DES-061**: MUST implement `scripts/rename-me.sh` in Bash resolving the template root from the script location, independent of the invocation directory and handling paths containing spaces.
+- **DES-062**: MUST accept mandatory parameters `--description`, `--program`, `--shortname`, `--repository`, and `--publishname`, terminating non-zero with a usage diagnostic when any is missing, empty, or newline-bearing.
+- **DES-063**: MUST accept optional `--author` and `--owner` whose omission preserves the `Francesco Rolando` and `Ogekuri` source strings.
+- **DES-064**: MUST replace every active source-string occurrence inside all template text file contents, excluding the script itself, `.git`, `temp/`, and generated directories.
+- **DES-065**: MUST order substitutions so `githubtemplateastraluv` is replaced before its substring `templateastraluv`.
+- **DES-066**: MUST rename every file and directory whose name contains an active source string, applying the same mapping deepest-first.
+- **DES-067**: MUST substitute program-name occurrences inside `.github/workflows/release-pypi.yml` with `publishname` before the global `program` substitution (A-15).
+- **DES-068**: MUST terminate non-zero with a diagnostic when any substitution, rename, or residual verification step fails.
+- **DES-069**: MUST verify after renaming that no active source string remains in any processed content, filename, or path, and MUST remove `scripts/rename-me.sh` only after full success.
 
 ### 3.2 Functions
 - **REQ-001**: MUST print the verbatim English help screen (template below) when invoked with `--help` or with no arguments.
@@ -278,3 +305,5 @@ Options:
 - **TST-030**: MUST verify DES-057 by parsing `pyproject.toml`: build-system requires contains `setuptools>=77.0.0` and no `wheel` entry.
 - **TST-031**: MUST verify DES-003 by parsing `pyproject.toml`: `project.scripts` declares exactly the `githubtemplateastraluv` entry point.
 - **TST-032**: MUST verify DES-059 and DES-060 by parsing `README.md`: upgrade rows match the mandated argv and no schema-empty or configurable-color claims remain.
+- **TST-033**: MUST verify `scripts/rename-me.sh` by copying the template working tree into `temp/`, executing the copied script with all seven parameters, and asserting exit status 0.
+- **TST-034**: MUST pass TST-033 iff no source string remains in any copied text-file content, filename, or path (binary archives excluded from content scanning).

@@ -16,11 +16,13 @@ paths only; no line numbers. Process IDs are stable.
 | `PROC:uv-build-runtime` | process | `PROC:build-tooling` | Transient uv process that syncs the locked environment and runs the PEP 517 build backend to produce sdist and wheel into `dist/` | uv CLI argv: `run --frozen --with build python -m build` | `scripts/build.sh` |
 | `PROC:release-check` | process | none (user shell) | Release-readiness verifier running fail-fast checks (shell syntax, bytecode compilation, pytest suite, out-of-tree build, artifact validation) with baseline-guarded cleanup and integrity verification | `scripts/pre-release-check.sh` (bash top-level execution) | `scripts/pre-release-check.sh` |
 | `PROC:uv-check-runtime` | process | `PROC:release-check` | Transient uv children executing compileall, the pytest suite, the out-of-tree build, and the artifact validator | uv CLI argv: `run python -m compileall -q src tests`, `run pytest`, `run --frozen --with build python -m build --outdir <TMP>`, `run python <validator> <TMP>` | `scripts/pre-release-check.sh` |
+| `PROC:rename-tooling` | process | none (user shell) or pytest child | One-shot template instantiation: substitutes the template identity strings across pruned-tree text file contents, renames every file/directory carrying them, verifies the residual-free state, and removes itself on success | `scripts/rename-me.sh` (bash top-level execution) | `scripts/rename-me.sh` |
 
 Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
 `PROC:uv-runtime`, `PROC:uv-tool-manage`, `PROC:build-tooling`,
 `PROC:clean-tooling`, `PROC:uv-build-runtime`, `PROC:release-check`,
-`PROC:uv-check-runtime` — no explicit threads detected.
+`PROC:uv-check-runtime`, `PROC:rename-tooling` — no explicit threads
+detected.
 
 ## Execution Units
 
@@ -409,6 +411,36 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
   build backend isolation, system temporary build output, artifact
   archives under the temporary build directory.
 
+### PROC:rename-tooling
+
+- Entrypoint(s): bash interpreter executing `scripts/rename-me.sh`
+  top-level statements.
+- Lifecycle/trigger: starts on user invocation of `scripts/rename-me.sh`
+  inside a template copy, or during the pytest-driven suite run (child of
+  the `PROC:release-check` pytest phase / `PROC:uv-check-runtime`) over a
+  disposable working-tree copy under `temp/`; parses and validates the
+  five mandatory parameters (`--description`, `--program`, `--shortname`,
+  `--repository`, `--publishname`) plus the optional `--author` and
+  `--owner` (validation precedes every mutation and aborts non-zero with
+  the usage block), resolves the template root from the script location
+  without git, applies the publish-action `publishname` pre-pass over
+  `.github/workflows/release-pypi.yml`, substitutes the active source
+  strings across all pruned-tree text file contents (the running script
+  excluded), renames every file and directory whose basename carries an
+  active source string deepest-first, verifies that no active source
+  string survives in any processed content, filename, or path, and
+  finally removes `scripts/rename-me.sh` itself; any failure exits
+  non-zero with a stderr diagnostic and keeps the script on disk.
+- Internal Call-Trace Tree: no internal functions under `src/` (shell
+  functions `usage`, `require_value`, `escape_pattern`,
+  `escape_replacement`, `add_rule`, `apply_publishname_prepass`,
+  `is_text_file`, `find_template_files`, `substitute_contents`,
+  `rename_paths`, `verify_residuals` are defined in
+  `scripts/rename-me.sh`, outside `src/`).
+- External Boundaries: `readlink -f`, `dirname`, `basename`, `mktemp`,
+  `find`, `grep`, `sed -i`, `mv`, `rm`, `cat`, system temporary directory,
+  stdout diagnostics, stderr diagnostics.
+
 ## Communication Edges
 
 | # | Direction | Mechanism | Endpoint / Channel | Payload / Data shape | Declaration file path(s) |
@@ -430,3 +462,4 @@ Threads: `PROC:main` — no explicit threads detected. `PROC:launcher`,
 | 15 | `PROC:release-check` -> `PROC:uv-check-runtime` | sequential child-process spawn, stdio inherited | uv CLI `run` (compileall / pytest / out-of-tree build / artifact validator) | phase argv; `returncode` drives the fail-fast abort | `scripts/pre-release-check.sh` |
 | 16 | `PROC:release-check` -> filesystem (system temp) | `mktemp -d` allocation, file writes, recursive removal | system temporary work directory | git-status baseline/current/final snapshots, out-of-tree build output, artifact validator script | `scripts/pre-release-check.sh` |
 | 17 | `PROC:release-check` -> filesystem (repository generated paths) | creation via test/build tooling, then baseline-diff `rm -rf` removal | `.venv/`, `__pycache__/`, `.pytest_cache/`, `*.egg-info/` under the repository | execution-generated caches and environments removed on success, failure, or signal; pre-existing content preserved | `scripts/pre-release-check.sh` |
+| 18 | `PROC:rename-tooling` -> filesystem (template tree) | in-place `sed -i` content edits, deepest-first `mv` renames, self-removal via `rm` | `<template root>/` pruned tree | substituted text-file contents; renamed file/directory paths; `scripts/rename-me.sh` removed on full success, kept on any failure | `scripts/rename-me.sh` |
