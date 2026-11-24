@@ -1852,9 +1852,12 @@ def test_build_script_double_run_is_clean_and_idempotent(tmp_path):
             exit 0 with the `[CLEAN]` pre-build delegation logged, the
             seeded stale distribution artifact disappears, and `dist/`
             ends holding exactly one sdist and one wheel for the
-            declared version; expected_exception = none. Isolation:
-            disposable git sandbox under tmp_path; uv provisions build
-            tooling from the local uv cache.
+            version declared in the sandbox `pyproject.toml`
+            (`project.version` parsed with `tomllib`; artifact names
+            are derived, never hardcoded, so version bumps cannot
+            desynchronize the expectation); expected_exception = none.
+            Isolation: disposable git sandbox under tmp_path; uv
+            provisions build tooling from the local uv cache.
     @param tmp_path {Path} pytest per-test temporary directory.
     """
     repo = tmp_path / "build sandbox"
@@ -1884,9 +1887,12 @@ def test_build_script_double_run_is_clean_and_idempotent(tmp_path):
     artifacts = sorted(
         item.name for item in (repo / "dist").iterdir() if item.is_file()
     )
+    declared_version = tomllib.loads(
+        (repo / "pyproject.toml").read_text(encoding="utf-8")
+    )["project"]["version"]
     assert artifacts == [
-        "githubtemplateastraluv-0.0.6-py3-none-any.whl",
-        "githubtemplateastraluv-0.0.6.tar.gz",
+        f"githubtemplateastraluv-{declared_version}-py3-none-any.whl",
+        f"githubtemplateastraluv-{declared_version}.tar.gz",
     ]
 
 
