@@ -419,7 +419,7 @@ def test_upgrade_develop_on_linux_executes_exact_uv_install(isolated_home):
         "githubtemplateastraluv",
         "--reinstall",
         "--from",
-        "git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git",
+        "git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git@develop",
     ]
     run_mock.assert_called_once_with(
         management.UPGRADE_DEVELOP_COMMAND, check=False
@@ -1737,7 +1737,7 @@ def test_readme_command_and_configuration_documentation_contract():
     assert "`uv tool upgrade githubtemplateastraluv`" in text
     assert (
         "`uv tool install githubtemplateastraluv --reinstall --from "
-        "git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git`"
+        "git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git@develop`"
         in text
     )
     assert "version_check:disable-version-check" in text

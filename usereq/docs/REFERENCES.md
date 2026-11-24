@@ -679,7 +679,7 @@ or `now_epoch >= idle_time_epoch`; otherwise it stays closed.
 
 ### fn `def _fetch_latest_github_version() -> str` `priv` (L213-240)
 - @brief GET the latest GitHub release payload and extract its version.
-- @details Strips one leading `v`/`V` prefix from `tag_name`; the returned value is exactly the version downloaded by `--upgrade --develop` (REQ-032) regardless of the branch the release was tagged on.
+- @details Strips one leading `v`/`V` prefix from `tag_name`; the returned value is the latest release tag of any branch; the `--upgrade --develop` variant installs the `develop` branch head instead (REQ-032), so the two versions MAY differ.
 - @return {str} Latest release version in `x.y.z` format.
 - @throws {urllib.error.URLError} On HTTP and network failures; includes HTTPError carrying the status code (e.g. 429, 503).
 - @throws {TimeoutError} On the 2-second timeout expiry.
@@ -727,7 +727,7 @@ or `now_epoch >= idle_time_epoch`; otherwise it stays closed.
 
 ### fn `def run_version_report(installed_version: str) -> None` (L345-417)
 - @brief Execute the forced dual-source version report (`--ver`).
-- @details Flow: fetch PyPI -> fetch GitHub -> emit the three aligned rows. Each failed fetch emits one bright red note naming the failed source with the hardcoded error color (REQ-030) and its row prints `unknown (<reason>)`, carrying the actually encountered error, in place of the version (REQ-030). Rows print in order: installed, PyPI, GitHub; version columns aligned via a 17-character label pad (REQ-027). The GitHub row shows the latest release tag stripped of its `v` prefix, exactly the version downloaded by `--upgrade --develop` (REQ-029). The idle-time gate and cache file are bypassed (REQ-002); the cache write follows the PyPI outcome only: 3600 s on success, 86400 s on failure (REQ-031). The call always returns normally (A-06).
+- @details Flow: fetch PyPI -> fetch GitHub -> emit the three aligned rows. Each failed fetch emits one bright red note naming the failed source with the hardcoded error color (REQ-030) and its row prints `unknown (<reason>)`, carrying the actually encountered error, in place of the version (REQ-030). Rows print in order: installed, PyPI, GitHub; version columns aligned via a 17-character label pad (REQ-027). The GitHub row shows the latest release tag stripped of its `v` prefix (REQ-029); `--upgrade --develop` installs the `develop` branch head (REQ-032), so the row value MAY differ from it. The idle-time gate and cache file are bypassed (REQ-002); the cache write follows the PyPI outcome only: 3600 s on success, 86400 s on failure (REQ-031). The call always returns normally (A-06).
 - @param installed_version {str} Installed version in `x.y.z` format.
 - @return {None}
 - @satisfies REQ-002 REQ-027 REQ-028 REQ-029 REQ-030 REQ-031 REQ-026 REQ-046

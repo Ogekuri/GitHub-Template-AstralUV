@@ -214,9 +214,9 @@ def _fetch_latest_github_version() -> str:
     """@brief GET the latest GitHub release payload and extract its version.
 
     @details Strips one leading `v`/`V` prefix from `tag_name`; the returned
-             value is exactly the version downloaded by
-             `--upgrade --develop` (REQ-032) regardless of the branch the
-             release was tagged on.
+             value is the latest release tag of any branch; the
+             `--upgrade --develop` variant installs the `develop` branch
+             head instead (REQ-032), so the two versions MAY differ.
     @return {str} Latest release version in `x.y.z` format.
     @throws {urllib.error.URLError} On HTTP and network failures; includes
             HTTPError carrying the status code (e.g. 429, 503).
@@ -352,9 +352,9 @@ def run_version_report(installed_version: str) -> None:
              encountered error, in place of the version (REQ-030). Rows
              print in order: installed, PyPI, GitHub; version columns
              aligned via a 17-character label pad (REQ-027). The GitHub
-             row shows the latest release tag stripped of its `v` prefix,
-             exactly the version downloaded by `--upgrade --develop`
-             (REQ-029). The idle-time gate and cache file are bypassed
+             row shows the latest release tag stripped of its `v` prefix
+             (REQ-029); `--upgrade --develop` installs the `develop`
+             branch head (REQ-032), so the row value MAY differ from it. The idle-time gate and cache file are bypassed
              (REQ-002); the cache write follows the PyPI outcome only:
              3600 s on success, 86400 s on failure (REQ-031). The call
              always returns normally (A-06).

@@ -118,9 +118,9 @@ githubtemplateastraluv --upgrade --force
 githubtemplateastraluv --upgrade --develop --force
 ```
 
-`--upgrade --develop` always downloads the most recent tagged build from
-GitHub, regardless of the branch it was tagged on. The `--ver` report shows
-that channel in the `Latest @ GitHub` row.
+`--upgrade --develop` always installs the head of the GitHub `develop`
+branch. The `--ver` report shows the GitHub release channel in the
+`Latest @ GitHub` row.
 
 ## Run locally from the repository
 
@@ -180,8 +180,8 @@ the latest release tag.
 | --- | --- |
 | `--upgrade` | `uv tool upgrade githubtemplateastraluv` |
 | `--upgrade --force` | `uv tool install githubtemplateastraluv --force --reinstall --refresh` |
-| `--upgrade --develop` | `uv tool install githubtemplateastraluv --reinstall --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` |
-| `--upgrade --develop --force` | `uv tool install githubtemplateastraluv --force --reinstall --refresh --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` |
+| `--upgrade --develop` | `uv tool install githubtemplateastraluv --reinstall --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git@develop` |
+| `--upgrade --develop --force` | `uv tool install githubtemplateastraluv --force --reinstall --refresh --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git@develop` |
 
 On non-Linux operating systems nothing is executed: the tool prints a warning
 and the matching manual command from the table. `--develop` and `--force` are

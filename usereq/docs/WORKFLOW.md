@@ -294,10 +294,10 @@ detected.
   upgrade), `uv tool install githubtemplateastraluv --force --reinstall
   --refresh` (forced PyPI source), `uv tool install
   githubtemplateastraluv --reinstall --from
-  git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` (develop
-  upgrade), `uv tool install githubtemplateastraluv --force --reinstall
+  git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git@develop`
+  (develop upgrade), `uv tool install githubtemplateastraluv --force --reinstall
   --refresh --from
-  git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git` (forced
+  git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git@develop` (forced
   develop variant), or `uv tool uninstall githubtemplateastraluv`.
 - Lifecycle/trigger: spawned by `PROC:main` only when `is_linux()` is
   true and the user passed `--upgrade` or `--uninstall`; runs to

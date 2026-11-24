@@ -46,7 +46,7 @@ UPGRADE_FORCE_COMMAND = [
 # @details `' '.join(UPGRADE_DEVELOP_COMMAND)` equals the literal string
 #          mandated by REQ-032 and is printed verbatim as the manual
 #          command on non-Linux platforms (REQ-033). Source resolves from
-#          the GitHub repository (latest tagged release, any branch);
+#          the GitHub `develop` branch head (`@develop` ref);
 #          `--reinstall` replaces the already-installed tool because
 #          `uv tool upgrade` rejects `--from`; no `--force` applies
 #          (REQ-037).
@@ -57,7 +57,7 @@ UPGRADE_DEVELOP_COMMAND = [
     "githubtemplateastraluv",
     "--reinstall",
     "--from",
-    "git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git",
+    "git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git@develop",
 ]
 
 ## @brief Exact `uv tool install` argv executed on Linux by
@@ -66,7 +66,7 @@ UPGRADE_DEVELOP_COMMAND = [
 #          string mandated by REQ-036 and is printed verbatim as the
 #          manual command on non-Linux platforms (REQ-033). The forcing
 #          options force the full re-download and complete reinstallation
-#          from the GitHub repository source (REQ-037).
+#          from the GitHub `develop` branch source (REQ-037).
 UPGRADE_DEVELOP_FORCE_COMMAND = [
     "uv",
     "tool",
@@ -76,7 +76,7 @@ UPGRADE_DEVELOP_FORCE_COMMAND = [
     "--reinstall",
     "--refresh",
     "--from",
-    "git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git",
+    "git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git@develop",
 ]
 
 ## @brief Exact `uv tool uninstall` argv executed on Linux by `--uninstall`.
