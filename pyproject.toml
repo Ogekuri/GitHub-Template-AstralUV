@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "githubtemplateastraluv"
-version = "0.0.8"
+version = "0.0.9"
 description = "GitHub template for Astral-UV app."
 readme = "README.md"
 requires-python = ">=3.11"

@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.8](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.8) - 2026-11-24
+## [0.0.9](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.9) - 2026-11-26
 ### ⛰️  Features
 - Add .galias.conf file.
 - add one-shot template rename script with sandbox pytest [useReq] *(rename-me)*
@@ -88,6 +88,8 @@
 - Fix clean.sh script.
 
 ### 🚜  Changes
+- deploy templateastraluv short-name executable alongside long name [useReq] *(packaging)*
+  DES-003 now mandates exactly two console-script entry points: githubtemplateastraluv (long name) and templateastraluv (short name), both bound to githubtemplateastraluv.__main__:main so uv tool install deploys the identical CLI dispatch under both names (REQ-048, A-11). TST-031 updated to the dual entry-point contract; test_pyproject_declares_dual_entry_points replaces the single-entry-point assertion. Full suite green: 67 passed.
 - install --upgrade --develop from GitHub develop branch [useReq] *(management)*
   REQ-032/REQ-036 now mandate the develop branch head via git+...AstralUV.git@develop. UPGRADE_DEVELOP_COMMAND and UPGRADE_DEVELOP_FORCE_COMMAND updated accordingly; README command rows and version-report docstrings aligned (DES-019, DES-059); exact-argv test assertions updated (TST-003, TST-014, TST-032).
 - harden version check, docs, packaging and template tooling [useReq] *(core)*
@@ -167,6 +169,6 @@
 
 # History
 
-- \[0.0.8\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.8
+- \[0.0.9\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.9
 
-[0.0.8]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.8
+[0.0.9]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.9
