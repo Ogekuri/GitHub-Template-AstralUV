@@ -35,6 +35,7 @@ Repository = "https://github.com/Ogekuri/GitHub-Template-AstralUV"
 
 [project.scripts]
 githubtemplateastraluv = "githubtemplateastraluv.__main__:main"
+templateastraluv = "githubtemplateastraluv.__main__:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

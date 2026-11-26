@@ -57,7 +57,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **A-08**: The HTTPS client uses the Python standard library; no third-party HTTP library is mandated.
 - **A-09**: "Linux" detection MAY use `sys.platform == "linux"` or equivalent; all other platforms take the manual-command branch.
 - **A-10**: No unit tests were explicitly requested; Section 4 defines verification procedures for downstream development.
-- **A-11**: The console-script entry point name equals `%PROGRAM%` (`githubtemplateastraluv`).
+- **A-11**: The console-script entry point names equal `%PROGRAM%` (`githubtemplateastraluv`, long name) and `%SHORTNAME%` (`templateastraluv`, short name); both deploy the identical CLI dispatch, and the help usage line keeps the `%PROGRAM%` name verbatim.
 - **A-12**: The renamed skeleton copy (`src/templateastraluv/`) and the distributed application sources (`src/githubtemplateastraluv/`) coexist as prescribed by the user request.
 - **A-13**: The GitHub breaking change rolling the `ubuntu-latest` label to Ubuntu 26.04 (October 19 - November 19, 2026) is mitigated by pinning the release-workflow runner to the explicit `ubuntu-24.04` label (behavior-preserving mitigation) instead of adopting `ubuntu-26.04`.
 - **A-14**: After `scripts/rename-me.sh` execution, `uv.lock` may hold stale package names and hashes; refreshing it via `uv lock` is a post-rename user step outside the script scope.
@@ -98,7 +98,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 ### 3.1 Design and Implementation
 - **DES-001**: MUST implement the application in Python with `pyproject.toml` packaging metadata compatible with `uv build`, `uv tool install`, and `uvx`.
 - **DES-002**: MUST declare in `pyproject.toml` every package, module, and data file required for `.github/workflows/release-pypi.yml` to build a complete distributable package.
-- **DES-003**: MUST expose exactly one console-script entry point, named `githubtemplateastraluv`, invoking the CLI defined in `src/githubtemplateastraluv/__main__.py`.
+- **DES-003**: MUST expose exactly two console-script entry points, named `githubtemplateastraluv` and `templateastraluv`, both invoking the CLI defined in `src/githubtemplateastraluv/__main__.py`.
 - **DES-004**: MUST place application sources under `src/githubtemplateastraluv/` with the CLI entry in `__main__.py` and core logic in `core.py`, mirroring the skeleton layout.
 - **DES-005**: MUST isolate management commands (`--help`, `--ver`, `--version`, `--upgrade`, `--uninstall`) from core logic in a dedicated module or clearly separated functions.
 - **DES-006**: MUST isolate the online version check (HTTPS query, cache persistence, notification rendering) in a dedicated component invoked before argument parsing.
@@ -271,6 +271,7 @@ Options:
 - **REQ-045**: MUST keep the `--ver` and `--version` report active with its REQ-002 fetches and REQ-031 cache update regardless of the `disable-version-check` value.
 - **REQ-046**: MUST treat version-check cache persistence as best effort: a failing cache write MUST NOT raise, print, or alter exit status and argument dispatch (refines REQ-010, A-06).
 - **REQ-047**: MUST compare versions by tolerant tuple parsing: every dot-separated component contributes its leading integer digits; missing or non-numeric prefixes evaluate as zero.
+- **REQ-048**: MUST execute the identical CLI dispatch of the `githubtemplateastraluv` entry point when invoked through the deployed `templateastraluv` short-name executable.
 
 ## 4. Test Requirements
 - **TST-001**: MUST verify REQ-001 and REQ-039 by running the CLI with no arguments and with `--help`; pass iff stdout equals the 3.2 template with `(x.y.z)` replaced by the current version.
@@ -303,7 +304,7 @@ Options:
 - **TST-028**: MUST verify REQ-047 with a mocked PyPI version carrying a non-integer suffix (e.g. `9.9.9rc1`): no error note prints and comparison uses leading integers.
 - **TST-029**: MUST verify CTN-012 and CTN-013 against `scripts/templateastraluv.sh`: a `uv`-less PATH exits non-zero with a diagnostic and the delegation argv contains `--frozen`.
 - **TST-030**: MUST verify DES-057 by parsing `pyproject.toml`: build-system requires contains `setuptools>=77.0.0` and no `wheel` entry.
-- **TST-031**: MUST verify DES-003 by parsing `pyproject.toml`: `project.scripts` declares exactly the `githubtemplateastraluv` entry point.
+- **TST-031**: MUST verify DES-003 and REQ-048 by parsing `pyproject.toml`: `project.scripts` declares exactly the `githubtemplateastraluv` and `templateastraluv` entry points, both mapping to `githubtemplateastraluv.__main__:main`.
 - **TST-032**: MUST verify DES-059 and DES-060 by parsing `README.md`: upgrade rows match the mandated argv and no schema-empty or configurable-color claims remain.
 - **TST-033**: MUST verify `scripts/rename-me.sh` by copying the template working tree into `temp/`, executing the copied script with all seven parameters, and asserting exit status 0.
 - **TST-034**: MUST pass TST-033 iff no source string remains in any copied text-file content, filename, or path (binary archives excluded from content scanning).

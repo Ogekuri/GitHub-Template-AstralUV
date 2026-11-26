@@ -1710,17 +1710,20 @@ def test_pyproject_build_system_requires_setuptools_77_without_wheel():
     assert requires == ["setuptools>=77.0.0", "build>=1.0.0"]
 
 
-def test_pyproject_declares_single_entry_point():
-    """@brief TST-031 (DES-003): exactly one console-script entry point.
+def test_pyproject_declares_dual_entry_points():
+    """@brief TST-031 (DES-003, REQ-048): exactly two console-script
+            entry points.
 
-    @details expected_output = `project.scripts` maps only
-            `githubtemplateastraluv` to
-            `githubtemplateastraluv.__main__:main`; no alias entry
-            point exists; expected_exception = none.
+    @details expected_output = `project.scripts` maps exactly
+            `githubtemplateastraluv` (long name) and `templateastraluv`
+            (short name) to the same `githubtemplateastraluv.__main__:main`
+            CLI function; no other entry point exists;
+            expected_exception = none.
     """
     metadata = tomllib.loads(PYPROJECT_PATH.read_text(encoding="utf-8"))
     assert metadata["project"]["scripts"] == {
-        "githubtemplateastraluv": "githubtemplateastraluv.__main__:main"
+        "githubtemplateastraluv": "githubtemplateastraluv.__main__:main",
+        "templateastraluv": "githubtemplateastraluv.__main__:main",
     }
 
 

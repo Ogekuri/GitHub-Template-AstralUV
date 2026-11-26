@@ -9,7 +9,7 @@ paths only; no line numbers. Process IDs are stable.
 | --- | --- | --- | --- | --- | --- |
 | `PROC:launcher` | process | none (user shell) | Local-run wrapper resolving the project root, validating `uv`, and delegating to the frozen uv runtime | `scripts/templateastraluv.sh` (bash top-level execution) | `scripts/templateastraluv.sh` |
 | `PROC:uv-runtime` | process | `PROC:launcher` | Transient uv process that resolves/creates the project virtual environment and launches the CLI | uv CLI argv: `run --frozen --project <BASE_DIR> python -m githubtemplateastraluv` | `scripts/templateastraluv.sh` |
-| `PROC:main` | process | `PROC:uv-runtime` (via launcher) or user interpreter | CLI application process: gated version check plus management-command and configuration-CLI dispatch | `githubtemplateastraluv.__main__:main`; module guard `python -m githubtemplateastraluv` | `src/githubtemplateastraluv/__main__.py`, `src/githubtemplateastraluv/core.py`, `src/githubtemplateastraluv/config.py`, `src/githubtemplateastraluv/config_render.py`, `src/githubtemplateastraluv/colors.py` |
+| `PROC:main` | process | `PROC:uv-runtime` (via launcher) or user interpreter | CLI application process: gated version check plus management-command and configuration-CLI dispatch | `githubtemplateastraluv.__main__:main` (bound to both the `githubtemplateastraluv` and `templateastraluv` console scripts); module guard `python -m githubtemplateastraluv` | `src/githubtemplateastraluv/__main__.py`, `src/githubtemplateastraluv/core.py`, `src/githubtemplateastraluv/config.py`, `src/githubtemplateastraluv/config_render.py`, `src/githubtemplateastraluv/colors.py` |
 | `PROC:uv-tool-manage` | process | `PROC:main` | Transient child process executing `uv tool upgrade` (PyPI), `uv tool install --reinstall` (develop), `uv tool install` (forced variants), or `uv tool uninstall` (Linux only) | uv CLI argv from `UPGRADE_COMMAND` / `UPGRADE_FORCE_COMMAND` / `UPGRADE_DEVELOP_COMMAND` / `UPGRADE_DEVELOP_FORCE_COMMAND` / `UNINSTALL_COMMAND` | `src/githubtemplateastraluv/management.py` |
 | `PROC:build-tooling` | process | none (user shell) | Release-packaging wrapper validating the toolchain, restoring the clean startup state via `scripts/clean.sh`, pruning stale generated artifacts, and delegating the build | `scripts/build.sh` (bash top-level execution) | `scripts/build.sh` |
 | `PROC:clean-tooling` | process | `PROC:build-tooling` (delegated) or user shell | Repository cleanup wrapper removing execution-generated caches, bytecode, package metadata, tool caches, build intermediates, the uv virtual environment, and coverage data while preserving `dist/` | `scripts/clean.sh` (bash top-level execution) | `scripts/clean.sh` |
@@ -56,8 +56,10 @@ detected.
 
 ### PROC:main
 
-- Entrypoint(s): console-script entry `githubtemplateastraluv.__main__:main`
-  and the module guard in `src/githubtemplateastraluv/__main__.py`
+- Entrypoint(s): console-script entries `githubtemplateastraluv` (long
+  name) and `templateastraluv` (short name), both bound to
+  `githubtemplateastraluv.__main__:main`, and the module guard in
+  `src/githubtemplateastraluv/__main__.py`
   (`sys.exit(main())`).
 - Lifecycle/trigger: starts on CLI invocation; runs the gated
   online version check before dispatch unless the configuration
