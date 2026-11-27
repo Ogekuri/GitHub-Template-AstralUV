@@ -1,7 +1,9 @@
 # Changelog
 
-## [0.0.9](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.9) - 2026-11-26
+## [0.0.10](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.10) - 2026-11-27
 ### ⛰️  Features
+- add TODO and line-wrap mandates, unwrap README paragraphs [useReq] *(README)*
+  Add mandatory SRS requirements DES-070..DES-073 for README.md: every top-level chapter MUST begin with a TODO completion note, and prose MUST NOT be hard-wrapped across source lines. Unwrap all README.md paragraph, list-item, blockquote, and inline-HTML continuations onto single lines, preserving every TODO note, table row, command argv, code fence, and HTML badge element unchanged.
 - Add .galias.conf file.
 - add one-shot template rename script with sandbox pytest [useReq] *(rename-me)*
   Add scripts/rename-me.sh (PRJ-010): parameter validation (DES-062/063),
@@ -88,6 +90,14 @@
 - Fix clean.sh script.
 
 ### 🚜  Changes
+- BREAKING CHANGE: persist only non-default delta configuration entries [useReq] *(config)*
+  REQUIREMENTS: add REQ-049..REQ-052, DES-074, TST-035..TST-036; refine
+  REQ-017, REQ-018, DES-010 toward delta-only persistence.
+  config: subset schema validation, prune_defaults, empty-object
+  bootstrap, default-aware get_value, pruning set/unset mutations.
+  tests: cover delta-only persistence, default resolution of absent
+  entries, and empty-object bootstrap (TST-035, TST-036).
+  README: document the delta-only configuration file content.
 - deploy templateastraluv short-name executable alongside long name [useReq] *(packaging)*
   DES-003 now mandates exactly two console-script entry points: githubtemplateastraluv (long name) and templateastraluv (short name), both bound to githubtemplateastraluv.__main__:main so uv tool install deploys the identical CLI dispatch under both names (REQ-048, A-11). TST-031 updated to the dual entry-point contract; test_pyproject_declares_dual_entry_points replaces the single-entry-point assertion. Full suite green: 67 passed.
 - install --upgrade --develop from GitHub develop branch [useReq] *(management)*
@@ -166,9 +176,12 @@
 - add additive configuration CLI with deterministic tree renderer [useReq] *(config)*
   Add config.py (canonical Notifications schema, strict validation, atomic JSON persistence, canonical path resolution, --get/--set/--unset/--print-raw handlers) and config_render.py (shared data-driven box-drawing renderer and measured-width table formatter for --print/--info). Extend core.py dispatch additively; version_check.py now renders notifications with configured colors falling back to schema defaults (REQ-024..026). Requirements: PRJ-006, DES-010..014, REQ-016..026, TST-008..011; existing TST-001..007 interfaces preserved (14/14 pass).
 
+### 📚  Documentation
+- Update README.md file.
+
 
 # History
 
-- \[0.0.9\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.9
+- \[0.0.10\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.10
 
-[0.0.9]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.9
+[0.0.10]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.10

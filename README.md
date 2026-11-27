@@ -1,7 +1,7 @@
 > [!CAUTION]
 > **STRICTLY EXPERIMENTAL**: this project is a proof-of-concept template under active development. Interfaces, commands, packaging metadata, and release channels may change at any time without notice. Do not rely on it for production workloads.
 
-# githubtemplateastraluv / templateastraluv (0.0.9)
+# githubtemplateastraluv / templateastraluv (0.0.10)
 
 TODO: Once you have renamed the template using scripts/rename-me.sh, update and complete this README.md following the TODO instructions.
 
@@ -126,7 +126,7 @@ The launcher resolves the repository root and delegates to `uv run --frozen --pr
 The full help screen (printed by `--help` or by running the tool with no arguments):
 
 ```text
-Usage: githubtemplateastraluv [command] [options] (0.0.9)
+Usage: githubtemplateastraluv [command] [options] (0.0.10)
 
 Management Commands:
   --upgrade   - Reinstall githubtemplateastraluv on Linux; print manual command elsewhere.
