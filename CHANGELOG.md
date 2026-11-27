@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.10](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.10) - 2026-11-27
+## [0.0.11](https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.11) - 2026-11-27
 ### ⛰️  Features
 - add TODO and line-wrap mandates, unwrap README paragraphs [useReq] *(README)*
   Add mandatory SRS requirements DES-070..DES-073 for README.md: every top-level chapter MUST begin with a TODO completion note, and prose MUST NOT be hard-wrapped across source lines. Unwrap all README.md paragraph, list-item, blockquote, and inline-HTML continuations onto single lines, preserving every TODO note, table row, command argv, code fence, and HTML badge element unchanged.
@@ -178,10 +178,11 @@
 
 ### 📚  Documentation
 - Update README.md file.
+- Update README.md file.
 
 
 # History
 
-- \[0.0.10\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.10
+- \[0.0.11\]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.11
 
-[0.0.10]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.10
+[0.0.11]: https://github.com/Ogekuri/GitHub-Template-AstralUV/releases/tag/v0.0.11

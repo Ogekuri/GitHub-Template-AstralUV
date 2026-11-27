@@ -10,7 +10,7 @@
 > * **No Support or Feature Requests:** Please **do not** open issues, bug reports, or feature requests. They will not be addressed or accepted at this stage of development.
 > * **No Warranty:** This software is provided **"AS IS"**, without warranty of any kind, express or implied. You may use it strictly for **testing and evaluation purposes** at your own sole risk.
 
-# githubtemplateastraluv / templateastraluv (0.0.10)
+# githubtemplateastraluv / templateastraluv (0.0.11)
 
 TODO: Once you have renamed the template using scripts/rename-me.sh, update and complete this README.md following the TODO instructions.
 
@@ -135,7 +135,7 @@ The launcher resolves the repository root and delegates to `uv run --frozen --pr
 The full help screen (printed by `--help` or by running the tool with no arguments):
 
 ```text
-Usage: githubtemplateastraluv [command] [options] (0.0.10)
+Usage: githubtemplateastraluv [command] [options] (0.0.11)
 
 Management Commands:
   --upgrade   - Reinstall githubtemplateastraluv on Linux; print manual command elsewhere.
