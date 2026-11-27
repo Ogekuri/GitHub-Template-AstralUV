@@ -169,7 +169,8 @@ detected.
       - `config.operand_values(...)`: flag operand extraction and count
         validation [`src/githubtemplateastraluv/config.py`]
       - `config.ensure_bootstrapped(...)`: create directories and
-        initialize defaults [`src/githubtemplateastraluv/config.py`]
+        initialize the empty configuration file `{}` (DES-074)
+        [`src/githubtemplateastraluv/config.py`]
         - `config.config_path(...)`
           [`src/githubtemplateastraluv/config.py`]
         - `config.atomic_write_json(...)`: atomic durable JSON write
@@ -183,7 +184,8 @@ detected.
       - `config.resolve_segments(...)`: schema-driven canonical path
         resolution [`src/githubtemplateastraluv/config.py`]
       - `config.get_value(...)`: extract the JSON value at resolved
-        segments [`src/githubtemplateastraluv/config.py`]
+        segments, defaulting schema-known absent entries (REQ-052)
+        [`src/githubtemplateastraluv/config.py`]
     - `config.handle_set(...)`: parse, validate, and atomically persist
       a value [`src/githubtemplateastraluv/config.py`]
       - `config.operand_values(...)`
@@ -192,13 +194,17 @@ detected.
         [`src/githubtemplateastraluv/config.py`]
       - `config.load_strict(...)`
         [`src/githubtemplateastraluv/config.py`]
-      - `config.set_value(...)`: apply a validated `--set` mutation
+      - `config.set_value(...)`: apply a validated `--set` mutation with
+        a delta-pruned result
         [`src/githubtemplateastraluv/config.py`]
         - `config.resolve_segments(...)`
           [`src/githubtemplateastraluv/config.py`]
         - `config.parse_value(...)`: parse one operand into the schema
           type [`src/githubtemplateastraluv/config.py`]
         - `config.validate_config(...)`
+          [`src/githubtemplateastraluv/config.py`]
+        - `config.prune_defaults(...)`: prune default-equal entries into
+          the non-default persisted delta (REQ-049..REQ-051)
           [`src/githubtemplateastraluv/config.py`]
       - `config.atomic_write_json(...)`
         [`src/githubtemplateastraluv/config.py`]
@@ -211,12 +217,16 @@ detected.
       - `config.load_strict(...)`
         [`src/githubtemplateastraluv/config.py`]
       - `config.unset_value(...)`: apply a restore-to-default mutation
+        with a delta-pruned result
         [`src/githubtemplateastraluv/config.py`]
         - `config.resolve_segments(...)`
           [`src/githubtemplateastraluv/config.py`]
         - `config.default_config(...)`
           [`src/githubtemplateastraluv/config.py`]
         - `config.validate_config(...)`
+          [`src/githubtemplateastraluv/config.py`]
+        - `config.prune_defaults(...)`: prune restored default-equal
+          entries out of the persisted delta (REQ-049..REQ-051)
           [`src/githubtemplateastraluv/config.py`]
       - `config.atomic_write_json(...)`
         [`src/githubtemplateastraluv/config.py`]
@@ -455,7 +465,7 @@ detected.
 | 6 | `PROC:main` -> filesystem (cache) | JSON file read/write with parent-directory creation (best-effort write, REQ-046) | `$HOME/.cache/githubtemplateastraluv/check_version_idle-time.json` | four-field JSON: `last_check_epoch`, `last_check_human`, `idle_time_epoch`, `idle_time_human` | `src/githubtemplateastraluv/version_check.py` |
 | 7 | `PROC:main` -> stdout | `print()` (optionally ANSI SGR configured colors, default bright green 92 / bright red 91) | console stdout | help screen text, three-row aligned version report, availability/error notifications, configuration JSON (`--get`), configuration trees (`--print`/`--info`), raw file bytes (`--print-raw`) | `src/githubtemplateastraluv/core.py`, `src/githubtemplateastraluv/management.py`, `src/githubtemplateastraluv/version_check.py`, `src/githubtemplateastraluv/config.py`, `src/githubtemplateastraluv/config_render.py` |
 | 8 | `PROC:launcher` -> stderr | shell `echo` diagnostics | console stderr | project-root resolution errors | `scripts/templateastraluv.sh` |
-| 9 | `PROC:main` -> filesystem (configuration) | JSON file read/write with parent-directory creation, temporary-file fsync, and `os.replace` atomic swap | `$HOME/.config/githubtemplateastraluv/config.json` | validated schema JSON object (`version_check` section with the `disable-version-check` switch; also read tolerantly at startup before dispatch); raw bytes for `--print-raw` | `src/githubtemplateastraluv/config.py` |
+| 9 | `PROC:main` -> filesystem (configuration) | JSON file read/write with parent-directory creation, temporary-file fsync, and `os.replace` atomic swap | `$HOME/.config/githubtemplateastraluv/config.json` | validated non-default delta JSON object (`version_check:disable-version-check` persisted only when it differs from its schema default; schema-known absent entries read as defaults; also read tolerantly at startup before dispatch); raw bytes for `--print-raw` | `src/githubtemplateastraluv/config.py` |
 | 10 | `PROC:main` -> stderr | `print(..., file=sys.stderr)` | console stderr | `Error: ...` configuration diagnostics with exit status 1 | `src/githubtemplateastraluv/config.py`, `src/githubtemplateastraluv/config_render.py` |
 | 11 | `PROC:build-tooling` -> `PROC:uv-build-runtime` | child-process spawn, stdio inherited | uv CLI `run --frozen --with build python -m build` | argv with repository-root cwd; generated sdist/wheel in `dist/`; `returncode` propagated | `scripts/build.sh` |
 | 12 | `PROC:build-tooling` -> filesystem (dist/) | targeted file delete plus build-backend writes | `<repo root>/dist/` | stale `*.tar.gz`/`*.tgz`/`*.whl`/`*.zip` removal before build; fresh sdist and wheel preserved after build | `scripts/build.sh` |

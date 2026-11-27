@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 ## @file test_githubtemplateastraluv.py
-# @brief HDT unit suite (Generator mode) covering TST-001..TST-032 for
+# @brief HDT unit suite (Generator mode) covering TST-001..TST-036 for
 #        the githubtemplateastraluv CLI, its release workflow, its
 #        repository tooling scripts, and its packaging-artifact contract.
 # @details HDT static-analysis artifact (section 7.1):
@@ -8,7 +8,7 @@
 #            management._management_entry, version_check._parse_version,
 #            version_check._human_timestamp,
 #            version_check._format_report_row, config.section,
-#            colors.notification_colors; L1 =
+#            config.prune_defaults, colors.notification_colors; L1 =
 #            management.build_help_text, management.print_help,
 #            management.cmd_upgrade, management.cmd_uninstall,
 #            version_check._read_cache, version_check._write_cache,
@@ -1518,6 +1518,113 @@ def test_version_check_parameter_config_cli_round_trip(
 
     assert config_render.handle_print(["--print"]) == 0
     assert "disable-version-check" in capsys.readouterr().out
+
+
+def test_set_persists_only_non_default_entries(isolated_home, capsys):
+    """@brief TST-035 (REQ-049/REQ-050): default-equal entries never persist.
+
+    @details UUTs: config.ensure_bootstrapped, config.handle_set,
+            config.handle_get (L1 composed). expected_output = bootstrap
+            initializes the empty JSON object `{}` (DES-074), `--set yes`
+            persists only the non-default delta, `--set no` (the schema
+            default) removes the persisted entry collapsing the file to
+            `{}`, and `--get` still resolves both values; success writes
+            print nothing on stdout; expected_exception = none.
+    @param isolated_home {Path} Fixture redirecting `$HOME` into tmp_path.
+    @param capsys {pytest.CaptureFixture} Stdout/stderr capture.
+    """
+    config.ensure_bootstrapped()
+    configuration_file = (
+        isolated_home / ".config" / "githubtemplateastraluv" / "config.json"
+    )
+    assert configuration_file.read_text(encoding="utf-8") == "{}\n"
+
+    assert config.handle_set(
+        ["--set", "version_check:disable-version-check", "yes"]
+    ) == 0
+    assert capsys.readouterr().out == ""
+    assert json.loads(configuration_file.read_text(encoding="utf-8")) == {
+        "version_check": {"disable-version-check": "yes"}
+    }
+
+    assert config.handle_set(
+        ["--set", "version_check:disable-version-check", "no"]
+    ) == 0
+    assert json.loads(configuration_file.read_text(encoding="utf-8")) == {}
+    assert config.handle_get(
+        ["--get", "version_check:disable-version-check"]
+    ) == 0
+    assert capsys.readouterr().out == "\"no\"\n"
+
+
+def test_unset_removes_restored_entries_and_empty_sections(isolated_home):
+    """@brief TST-035 (REQ-051): `--unset` prunes restored default entries.
+
+    @details UUTs: config.handle_unset, config.prune_defaults (L1
+            composed). expected_output = unsetting the parameter removes
+            the persisted entry, unsetting the whole section removes the
+            emptied section, and every fully-default outcome collapses
+            the persisted file to `{}`; expected_exception = none.
+    @param isolated_home {Path} Fixture redirecting `$HOME` into tmp_path.
+    """
+    configuration_file = (
+        isolated_home / ".config" / "githubtemplateastraluv" / "config.json"
+    )
+    _write_config(
+        isolated_home,
+        '{"version_check": {"disable-version-check": "yes"}}\n',
+    )
+    assert config.handle_unset(
+        ["--unset", "version_check:disable-version-check"]
+    ) == 0
+    assert json.loads(configuration_file.read_text(encoding="utf-8")) == {}
+
+    _write_config(
+        isolated_home,
+        '{"version_check": {"disable-version-check": "yes"}}\n',
+    )
+    assert config.handle_unset(["--unset", "version_check"]) == 0
+    assert json.loads(configuration_file.read_text(encoding="utf-8")) == {}
+
+
+def test_partial_payload_resolves_defaults_and_bootstraps_empty_object(
+    isolated_home, capsys,
+):
+    """@brief TST-036 (REQ-052/DES-074): partial payloads act as defaults.
+
+    @details UUTs: config.validate_config, config.handle_get,
+            config.handle_set (L1 composed). expected_output = strict
+            validation accepts `{}` and a partial section payload,
+            `--get` resolves absent parameter and section entries to
+            their schema defaults, and `--set` mutates a section missing
+            from the file; expected_exception = none.
+    @param isolated_home {Path} Fixture redirecting `$HOME` into tmp_path.
+    @param capsys {pytest.CaptureFixture} Stdout/stderr capture.
+    """
+    config.validate_config({})
+    config.validate_config({"version_check": {}})
+    config.ensure_bootstrapped()
+    configuration_file = (
+        isolated_home / ".config" / "githubtemplateastraluv" / "config.json"
+    )
+    assert json.loads(configuration_file.read_text(encoding="utf-8")) == {}
+
+    assert config.handle_get(
+        ["--get", "version_check:disable-version-check"]
+    ) == 0
+    assert capsys.readouterr().out == "\"no\"\n"
+    assert config.handle_get(["--get", "version_check"]) == 0
+    assert (
+        capsys.readouterr().out
+        == '{"disable-version-check": "no"}\n'
+    )
+
+    assert config.handle_set(
+        ["--set", "version_check:disable-version-check", "yes"]
+    ) == 0
+    assert json.loads(configuration_file.read_text(encoding="utf-8")) == {
+        "version_check": {"disable-version-check": "yes"}
+    }
 
 
 ## @brief Repository root anchoring the file-level contract fixtures

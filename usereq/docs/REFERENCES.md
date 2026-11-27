@@ -69,7 +69,7 @@ from typing import Any
 
 ---
 
-# config.py | Python | 725L | 27 symbols | 7 imports | 64 comments
+# config.py | Python | 811L | 28 symbols | 7 imports | 69 comments
 > Path: `src/githubtemplateastraluv/config.py`
 
 ## Imports
@@ -85,23 +85,23 @@ from typing import Any
 
 ## Definitions
 
-### class `class ParamSpec` `@dataclass(frozen=True)` (L34-60)
+### class `class ParamSpec` `@dataclass(frozen=True)` (L38-64)
 - @brief Immutable schema descriptor of one configuration parameter.
 - @details `token` equals the CLI path token byte for byte (REQ-022); drives parsing, validation, defaults, display, and documentation (DES-010).
-- fn `def constraints(self) -> str` (L53-60)
+- fn `def constraints(self) -> str` (L57-64)
   - @brief Constraints fragment rendered after the type label.
   - @return {str} Constraint summary, e.g. `7 allowed values`.
 
-### class `class SectionSpec` `@dataclass(frozen=True)` (L62-87)
+### class `class SectionSpec` `@dataclass(frozen=True)` (L66-91)
 - @brief Immutable schema descriptor of one fixed-schema section.
 - @details Fixed-schema dictionary branch; whole-section `--set` replaces the branch with a schema-compatible JSON object and `--unset` restores all parameter defaults (REQ-018).
-- fn `def param(self, token: str) -> ParamSpec | None` (L76-87)
+- fn `def param(self, token: str) -> ParamSpec | None` (L80-91)
   - @brief Ordered parameter descriptors of the section.
   - @brief Look up a parameter descriptor by canonical token.
   - @param token {str} Exact parameter path token (case-sensitive).
   - @return {ParamSpec | None} Matching descriptor; None if absent.
 
-### fn `def section(token: str) -> SectionSpec | None` (L137-151)
+### fn `def section(token: str) -> SectionSpec | None` (L141-155)
 - @brief Schema token to SectionSpec index for O(1) path resolution.
 - @brief Look up one schema section descriptor by canonical token.
 - @details Public schema access point (DES-058): cross-module consumers (renderers, documentation builders) resolve sections through this API instead of module-private indices; `token` equals the CLI path token byte for byte (REQ-022). Complexity: O(1) dictionary lookup.
@@ -109,27 +109,36 @@ from typing import Any
 - @return {SectionSpec | None} Matching descriptor; None if absent.
 - @satisfies DES-010 DES-058
 
-### class `class ConfigError(Exception)` : Exception (L152-160)
+### class `class ConfigError(Exception)` : Exception (L156-164)
 - @brief Configuration error carrying a user-facing diagnostic.
 - @details Raised for invalid paths, values, JSON, validation failures, and unrecoverable filesystem conditions; handlers render the message on stderr and exit 1 (REQ-023).
 
-### fn `def config_path() -> Path` (L161-175)
+### fn `def config_path() -> Path` (L165-179)
 - @brief Resolve the absolute global configuration file path.
 - @details Prefers the `HOME` environment variable (CTN-008 consistency with the version-check cache); falls back to `Path.home()` when unset. No project-local configuration layer exists.
 - @return {Path} Absolute path of the global configuration JSON file.
 
-### fn `def default_config() -> dict[str, dict[str, str]]` (L176-187)
+### fn `def default_config() -> dict[str, dict[str, str]]` (L180-193)
 - @brief Build the schema-default configuration payload.
 - @return {dict[str, dict[str, str]]} Section token to parameter token to default value, in canonical schema order.
+- @note The persisted file never stores this full form; persistence holds only non-default entries (REQ-049).
 
-### fn `def validate_config(payload: Any) -> None` (L188-240)
-- @brief Validate a complete configuration against the schema.
-- @details Strict validation: JSON object root, exact section key set, exact parameter key set per section, and Selection values restricted to the parameter enum. Raises without mutation; callers reject the operation on error.
+### fn `def prune_defaults(payload: dict[str, Any]) -> dict[str, dict[str, str]]` (L194-224)
+- @brief Prune default-equal entries from a validated payload.
+- @details Walks the schema in canonical order, keeping only parameters whose current value differs from the schema default (REQ-050) and dropping sections left without entries (REQ-051); the result is the canonical persistable form holding exclusively non-default entries (REQ-049). The input payload is never mutated.
+- @param payload {dict[str, Any]} Schema-validated configuration payload (full or partial form).
+- @return {dict[str, dict[str, str]]} Section token to parameter token to non-default value, in canonical schema order; `{}` when every value equals its default.
+- @satisfies REQ-049 REQ-050 REQ-051
+
+### fn `def validate_config(payload: Any) -> None` (L225-279)
+- @brief Validate a configuration payload against the schema.
+- @details Strict subset validation (REQ-052): JSON object root; every present section key must be a schema-known token; every present section value must be a JSON object whose keys are schema-known parameter tokens and whose values are strings within the parameter enum. Schema-known entries absent from the payload resolve to their defaults elsewhere (REQ-052); the payload never enumerates defaults because the persisted form holds only non-default entries (REQ-049). Raises without mutation; callers reject the operation on error.
 - @param payload {Any} Parsed JSON configuration payload.
 - @return {None}
-- @throws {ConfigError} On root-type, section-key, parameter-key, or enum-membership mismatch; message names the offending path.
+- @throws {ConfigError} On root-type mismatch, unknown section or parameter keys, non-object section values, or enum-membership mismatch; the message names the offending path.
+- @satisfies REQ-049 REQ-052
 
-### fn `def atomic_write_json(path: Path, payload: dict[str, Any]) -> None` (L241-294)
+### fn `def atomic_write_json(path: Path, payload: dict[str, Any]) -> None` (L280-333)
 - @brief Persist a validated payload atomically (DES-014).
 - @details Writes a same-directory temporary file, flushes and fsyncs it, preserves the prior target file mode, atomically replaces the target with `os.replace`, and fsyncs the parent directory where the platform supports it. The prior valid file survives any failure before the replace; on failure the temporary file is removed.
 - @param path {Path} Target configuration file path.
@@ -138,51 +147,55 @@ from typing import Any
 - @throws {ConfigError} When directory creation or the write/replace sequence fails; the original file stays untouched.
 - @post On success the file holds exactly the serialized payload with two-space indentation and a trailing newline.
 
-### fn `def ensure_bootstrapped() -> None` (L295-315)
-- @brief Create missing directories and initialize missing defaults.
-- @details Applicable configuration commands call this before executing. Never overwrites an existing file, valid or not; strict loaders surface invalid files as errors.
+### fn `def ensure_bootstrapped() -> None` (L334-359)
+- @brief Create missing directories and initialize the empty file.
+- @details Applicable configuration commands call this before executing. A missing configuration file initializes as an empty JSON object `{}` holding no entries: schema defaults are never persisted because the file stores exclusively non-default entries (DES-074, REQ-049, REQ-052). Never overwrites an existing file, valid or not; strict loaders surface invalid files as errors.
 - @return {None}
-- @throws {ConfigError} When directories cannot be created or the default file cannot be written.
+- @throws {ConfigError} When directories cannot be created or the initial file cannot be written.
+- @satisfies DES-074 REQ-049
 
-### fn `def _read_payload() -> Any` `priv` (L316-338)
+### fn `def _read_payload() -> Any` `priv` (L360-382)
 - @brief Read and parse the persisted configuration JSON document.
 - @details Resolves `config_path`, requires an existing file, reads it as UTF-8 text, and parses the JSON document; every failure raises without returning a partial result (REQ-023).
 - @return {Any} Parsed JSON payload.
 - @throws {ConfigError} When the file is absent, unreadable, or malformed JSON.
 
-### fn `def load_strict() -> dict[str, dict[str, str]]` (L339-353)
+### fn `def load_strict() -> dict[str, dict[str, str]]` (L383-397)
 - @brief Load and strictly validate the global configuration.
 - @details Reads the file selected by `config_path`, parses JSON, and applies `validate_config`; every failure raises instead of partially succeeding (REQ-022, REQ-023).
 - @return {dict[str, dict[str, str]]} Validated configuration payload.
 - @throws {ConfigError} When the file is absent, unreadable, malformed JSON, or schema-invalid.
 
-### fn `def load_display() -> dict[str, dict[str, str]]` (L354-390)
+### fn `def load_display() -> dict[str, dict[str, str]]` (L398-434)
 - @brief Load the schema-shaped display view of the configuration.
 - @details Read-only loader of the schema-driven `--print` and `--info` renderers (DES-010, DES-012): requires a JSON-object root, then projects the payload onto the schema. Content persisted by an older schema version never blocks rendering (TST-008): unknown sections and parameters are dropped, and schema branches or parameters missing from the file fall back to their schema defaults, so the result is always safe for the renderers' direct payload indexing. Unreadable, malformed, and non-object files remain hard failures (REQ-023).
 - @return {dict[str, dict[str, str]]} Schema-shaped payload: section token to parameter token to current value (schema default when absent from the file).
 - @throws {ConfigError} When the file is absent, unreadable, malformed JSON, or its root is not a JSON object.
 - @satisfies DES-010 TST-008 REQ-019 REQ-023
 
-### fn `def version_check_disabled() -> bool` (L391-415)
+### fn `def version_check_disabled() -> bool` (L435-459)
 - @brief Report whether the automatic version check is disabled.
 - @details Tolerant runtime reader (REQ-044): loads the schema-shaped display view and compares the `disable-version-check` value against the enabling enum token. An absent, unreadable, malformed, or non-object configuration file yields False (schema default: check enabled); unknown persisted keys are dropped by the loader, so stale-schema content never enables the suppression (REQ-042, TST-008).
 - @return {bool} True only when `version_check:disable-version-check` equals the enabling enum token; False otherwise.
 - @satisfies REQ-042 REQ-043 REQ-044
 
-### fn `def resolve_segments(path: str) -> tuple[str, ...]` (L416-462)
+### fn `def resolve_segments(path: str) -> tuple[str, ...]` (L460-506)
 - @brief Resolve a canonical configuration path against the schema.
 - @details Case-sensitive colon-separated tokens (REQ-022). This schema defines exactly two depths: `Section` and `Section:Parameter`; no array or map parameters exist, so deeper segments and reserved operation tokens (`append`, `+`, `insert`) are rejected as unknown or misplaced.
 - @param path {str} Raw canonical path from the CLI.
 - @return {tuple[str, ...]} One or two resolved path tokens.
 - @throws {ConfigError} On empty paths, empty tokens, unknown section or parameter tokens, and excessive depth; messages list valid alternatives.
 
-### fn `def get_value(payload: dict[str, Any], segments: tuple[str, ...]) -> Any` (L463-476)
-- @brief Extract the JSON-serializable value at a resolved path.
-- @param payload {dict[str, Any]} Validated configuration payload.
+### fn `def get_value(payload: dict[str, Any], segments: tuple[str, ...]) -> Any` (L507-540)
+- @brief Extract the resolved value at a path, defaulting absents.
+- @details Schema-known entries absent from the payload resolve to their schema default (REQ-052); depth 1 returns the default-completed section object, depth 2 the parameter value. The input payload is never mutated.
+- @param payload {dict[str, Any]} Validated configuration payload (full or partial form).
 - @param segments {tuple[str, ...]} Tokens from `resolve_segments`.
 - @return {Any} Section dict copy for depth 1; parameter string for depth 2.
+- @throws {ConfigError} On a defensive mismatch between the resolved segments and the schema (unreachable for `resolve_segments` output).
+- @satisfies REQ-052
 
-### fn `def parse_value(spec: ParamSpec, raw: str) -> str` (L477-496)
+### fn `def parse_value(spec: ParamSpec, raw: str) -> str` (L541-560)
 - @brief Parse a raw CLI operand into the schema type of `spec`.
 - @details Selection parameters accept exactly one enum token; JSON quoting is not stripped, so quoted input is rejected (REQ-017 typed parsing before write).
 - @param spec {ParamSpec} Target parameter descriptor.
@@ -190,34 +203,44 @@ from typing import Any
 - @return {str} Validated enum token.
 - @throws {ConfigError} When `raw` is not an allowed value; the message enumerates valid values.
 
-### fn `def set_value(` (L497-500)
+### fn `def set_value(` (L561-564)
 
-### fn `def unset_value(` (L537-539)
+### fn `def unset_value(` (L608-610)
 - @brief Apply a validated `--set` mutation and return the result.
 - @details Depth 1 replaces the whole section with a parsed
 schema-compatible JSON object; depth 2 parses the operand
-into the parameter schema type (REQ-017). The resulting
-configuration is validated in full before returning; the
-input payload is never mutated.
+into the parameter schema type (REQ-017). Absent schema
+sections start from their schema defaults (REQ-052). The
+resulting configuration is validated in full, then pruned
+to the non-default persistable form (REQ-049, REQ-050,
+REQ-051) before returning; the input payload is never
+mutated.
 - @param payload {dict[str, Any]} Current validated configuration.
 - @param path {str} Raw canonical target path.
 - @param raw {str} Raw value operand from the CLI.
-- @return {dict[str, dict[str, str]]} New validated configuration.
+- @return {dict[str, dict[str, str]]} New validated configuration
+holding only non-default entries.
 - @throws {ConfigError} On path, JSON, type, enum, or whole-config
 validation failure; no persisted mutation occurs.
+- @satisfies REQ-017 REQ-049 REQ-050 REQ-051 REQ-052
 
-### fn `def operand_values(` (L563-567)
+### fn `def operand_values(` (L641-645)
 - @brief Apply a `--unset` restore-to-default mutation.
 - @details Depth 1 restores all section parameter defaults; depth 2
-restores one parameter default (REQ-018). The resulting
-configuration is validated before returning; the input
-payload is never mutated.
+restores one parameter default (REQ-018). Absent schema
+sections start from their schema defaults (REQ-052). The
+resulting configuration is validated, then pruned to the
+non-default persistable form: restored entries leave the
+payload (REQ-049, REQ-050, REQ-051); the input payload is
+never mutated.
 - @param payload {dict[str, Any]} Current validated configuration.
 - @param path {str} Raw canonical target path.
-- @return {dict[str, dict[str, str]]} New validated configuration.
+- @return {dict[str, dict[str, str]]} New validated configuration
+holding only non-default entries.
 - @throws {ConfigError} On path resolution or validation failure.
+- @satisfies REQ-018 REQ-049 REQ-050 REQ-051 REQ-052
 
-### fn `def _usage_examples(flag: str) -> str` `priv` (L598-632)
+### fn `def _usage_examples(flag: str) -> str` `priv` (L676-710)
 - @brief Extract the operand tokens following one CLI flag.
 - @brief Build schema-valid usage examples for one config flag.
 - @details Operands are every token after the first flag occurrence;
@@ -235,31 +258,34 @@ raised (REQ-022).
 - @throws {ConfigError} When the operand count is out of range; the
 message embeds schema-valid usage examples.
 
-### fn `def _fail(error: ConfigError) -> int` `priv` (L633-645)
+### fn `def _fail(error: ConfigError) -> int` `priv` (L711-723)
 - @brief Report a configuration failure and yield the exit status.
 - @details Diagnostics go to stderr with an `Error:` prefix; stdout stays untouched so no partial success output exists (REQ-023).
 - @param error {ConfigError} Failure carrying the diagnostic message.
 - @return {int} Always 1.
 
-### fn `def handle_get(args: list[str]) -> int` (L646-666)
+### fn `def handle_get(args: list[str]) -> int` (L724-746)
 - @brief Execute `--get Path` (REQ-016).
-- @details Bootstraps storage, loads strictly, resolves the canonical path, and prints the resolved value as one valid JSON document on stdout without decoration (JSON-quoted strings, objects for sections).
+- @details Bootstraps storage, loads strictly, resolves the canonical path with schema-known entries absent from the file resolved to their schema defaults (REQ-052), and prints the resolved value as one valid JSON document on stdout without decoration (JSON-quoted strings, objects for sections).
 - @param args {list[str]} CLI argument tokens excluding program name.
 - @return {int} 0 on success; 1 with a stderr diagnostic on failure.
+- @satisfies REQ-016 REQ-052
 
-### fn `def handle_set(args: list[str]) -> int` (L667-686)
+### fn `def handle_set(args: list[str]) -> int` (L747-769)
 - @brief Execute `--set Path Value` (REQ-017, DES-014).
-- @details Parses Value into the schema type, validates the entire resulting configuration, and persists atomically; success is silent and any rejection leaves the stored file untouched.
+- @details Parses Value into the schema type, validates the entire resulting configuration, prunes default-equal entries (REQ-049, REQ-050, REQ-051), and persists the non-default delta atomically; success is silent and any rejection leaves the stored file untouched.
 - @param args {list[str]} CLI argument tokens excluding program name.
 - @return {int} 0 on success; 1 with a stderr diagnostic on failure.
+- @satisfies REQ-017 REQ-049 DES-014
 
-### fn `def handle_unset(args: list[str]) -> int` (L687-705)
+### fn `def handle_unset(args: list[str]) -> int` (L770-791)
 - @brief Execute `--unset Path` (REQ-018, DES-014).
-- @details Restores the targeted parameter or section to schema defaults and persists atomically; success is silent.
+- @details Restores the targeted parameter or section to schema defaults, prunes the restored default-equal entries from the persisted payload (REQ-049, REQ-050, REQ-051), and persists atomically; success is silent.
 - @param args {list[str]} CLI argument tokens excluding program name.
 - @return {int} 0 on success; 1 with a stderr diagnostic on failure.
+- @satisfies REQ-018 REQ-049 DES-014
 
-### fn `def handle_print_raw(args: list[str]) -> int` (L706-726)
+### fn `def handle_print_raw(args: list[str]) -> int` (L792-812)
 - @brief Execute `--print-raw` (REQ-021).
 - @details Emits the exact bytes of the global configuration JSON file without parsing, reformatting, headings, or trailing text; no tree formatting is ever applied (on-disk debugging view).
 - @param args {list[str]} CLI argument tokens excluding program name.
@@ -268,33 +294,34 @@ message embeds schema-valid usage examples.
 ## Symbol Index
 |Symbol|Kind|Vis|Lines|Sig|
 |---|---|---|---|---|
-|`ParamSpec`|class|pub|34-60|class ParamSpec|
-|`ParamSpec.constraints`|fn|pub|53-60|def constraints(self) -> str|
-|`SectionSpec`|class|pub|62-87|class SectionSpec|
-|`SectionSpec.param`|fn|pub|76-87|def param(self, token: str) -> ParamSpec | None|
-|`section`|fn|pub|137-151|def section(token: str) -> SectionSpec | None|
-|`ConfigError`|class|pub|152-160|class ConfigError(Exception)|
-|`config_path`|fn|pub|161-175|def config_path() -> Path|
-|`default_config`|fn|pub|176-187|def default_config() -> dict[str, dict[str, str]]|
-|`validate_config`|fn|pub|188-240|def validate_config(payload: Any) -> None|
-|`atomic_write_json`|fn|pub|241-294|def atomic_write_json(path: Path, payload: dict[str, Any]...|
-|`ensure_bootstrapped`|fn|pub|295-315|def ensure_bootstrapped() -> None|
-|`_read_payload`|fn|priv|316-338|def _read_payload() -> Any|
-|`load_strict`|fn|pub|339-353|def load_strict() -> dict[str, dict[str, str]]|
-|`load_display`|fn|pub|354-390|def load_display() -> dict[str, dict[str, str]]|
-|`version_check_disabled`|fn|pub|391-415|def version_check_disabled() -> bool|
-|`resolve_segments`|fn|pub|416-462|def resolve_segments(path: str) -> tuple[str, ...]|
-|`get_value`|fn|pub|463-476|def get_value(payload: dict[str, Any], segments: tuple[st...|
-|`parse_value`|fn|pub|477-496|def parse_value(spec: ParamSpec, raw: str) -> str|
-|`set_value`|fn|pub|497-500|def set_value(|
-|`unset_value`|fn|pub|537-539|def unset_value(|
-|`operand_values`|fn|pub|563-567|def operand_values(|
-|`_usage_examples`|fn|priv|598-632|def _usage_examples(flag: str) -> str|
-|`_fail`|fn|priv|633-645|def _fail(error: ConfigError) -> int|
-|`handle_get`|fn|pub|646-666|def handle_get(args: list[str]) -> int|
-|`handle_set`|fn|pub|667-686|def handle_set(args: list[str]) -> int|
-|`handle_unset`|fn|pub|687-705|def handle_unset(args: list[str]) -> int|
-|`handle_print_raw`|fn|pub|706-726|def handle_print_raw(args: list[str]) -> int|
+|`ParamSpec`|class|pub|38-64|class ParamSpec|
+|`ParamSpec.constraints`|fn|pub|57-64|def constraints(self) -> str|
+|`SectionSpec`|class|pub|66-91|class SectionSpec|
+|`SectionSpec.param`|fn|pub|80-91|def param(self, token: str) -> ParamSpec | None|
+|`section`|fn|pub|141-155|def section(token: str) -> SectionSpec | None|
+|`ConfigError`|class|pub|156-164|class ConfigError(Exception)|
+|`config_path`|fn|pub|165-179|def config_path() -> Path|
+|`default_config`|fn|pub|180-193|def default_config() -> dict[str, dict[str, str]]|
+|`prune_defaults`|fn|pub|194-224|def prune_defaults(payload: dict[str, Any]) -> dict[str, ...|
+|`validate_config`|fn|pub|225-279|def validate_config(payload: Any) -> None|
+|`atomic_write_json`|fn|pub|280-333|def atomic_write_json(path: Path, payload: dict[str, Any]...|
+|`ensure_bootstrapped`|fn|pub|334-359|def ensure_bootstrapped() -> None|
+|`_read_payload`|fn|priv|360-382|def _read_payload() -> Any|
+|`load_strict`|fn|pub|383-397|def load_strict() -> dict[str, dict[str, str]]|
+|`load_display`|fn|pub|398-434|def load_display() -> dict[str, dict[str, str]]|
+|`version_check_disabled`|fn|pub|435-459|def version_check_disabled() -> bool|
+|`resolve_segments`|fn|pub|460-506|def resolve_segments(path: str) -> tuple[str, ...]|
+|`get_value`|fn|pub|507-540|def get_value(payload: dict[str, Any], segments: tuple[st...|
+|`parse_value`|fn|pub|541-560|def parse_value(spec: ParamSpec, raw: str) -> str|
+|`set_value`|fn|pub|561-564|def set_value(|
+|`unset_value`|fn|pub|608-610|def unset_value(|
+|`operand_values`|fn|pub|641-645|def operand_values(|
+|`_usage_examples`|fn|priv|676-710|def _usage_examples(flag: str) -> str|
+|`_fail`|fn|priv|711-723|def _fail(error: ConfigError) -> int|
+|`handle_get`|fn|pub|724-746|def handle_get(args: list[str]) -> int|
+|`handle_set`|fn|pub|747-769|def handle_set(args: list[str]) -> int|
+|`handle_unset`|fn|pub|770-791|def handle_unset(args: list[str]) -> int|
+|`handle_print_raw`|fn|pub|792-812|def handle_print_raw(args: list[str]) -> int|
 
 
 ---

@@ -141,7 +141,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
         └── REQUIREMENTS.md
 ```
 
-- **DES-010**: MUST define one canonical in-code configuration schema covering sections, parameters, types, constraints, defaults, and descriptions, driving validation, path resolution, display, and documentation output.
+- **DES-010**: MUST define one canonical in-code configuration schema covering sections, parameters, types, constraints, defaults, and descriptions, driving validation, default-delta pruning, path resolution, display, and documentation output.
 - **DES-011**: MUST isolate the configuration subsystem (schema, validation, atomic persistence, CLI handlers, renderer) in dedicated modules under `src/githubtemplateastraluv/`.
 - **DES-012**: MUST render `--print` and `--info` through one shared data-driven renderer emitting UTF-8 box-drawing trees from typed configuration nodes.
 - **DES-013**: MUST produce every table through one measured-width formatter rendering rectangular box-drawing rows anchored to the owning parameter detail prefix.
@@ -204,6 +204,7 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **DES-071**: MUST keep every `README.md` chapter `TODO:` note as a completion instruction describing how to complete the chapter with the correct final data.
 - **DES-072**: MUST NOT hard-wrap `README.md` prose; each paragraph, list-item, and blockquote text unit MUST occupy exactly one source line.
 - **DES-073**: MUST limit `README.md` source line breaks to structural boundaries: headings, list items, table rows, fenced code lines, HTML block tags, self-contained HTML element lines, blockquote lines, and blank separators.
+- **DES-074**: MUST initialize an absent configuration file as an empty JSON object holding no section or parameter entries.
 
 ### 3.2 Functions
 - **REQ-001**: MUST print the verbatim English help screen (template below) when invoked with `--help` or with no arguments.
@@ -246,8 +247,8 @@ Options:
 - **REQ-014**: MUST print a bright red message reporting the encountered error for any failed HTTPS check (HTTP 429, 503, timeout, or network error).
 - **REQ-015**: MUST write the cache with an idle-delay of 86400 seconds after any failed HTTPS check (A-05).
 - **REQ-016**: MUST provide `--get Path` printing the resolved value as one valid JSON document on stdout without decoration, labels, or confirmations.
-- **REQ-017**: MUST provide `--set Path Value` parsing Value into the schema type and persisting the fully validated configuration atomically.
-- **REQ-018**: MUST provide `--unset Path` restoring the targeted parameter or section to its schema default and persisting atomically.
+- **REQ-017**: MUST provide `--set Path Value` parsing Value into the schema type and atomically persisting the validated configuration containing only non-default entries.
+- **REQ-018**: MUST provide `--unset Path` restoring the targeted parameter or section to its schema default and atomically persisting the pruned non-default configuration.
 - **REQ-019**: MUST provide `--print [Path]` rendering current values as a box-drawing tree whose section headings carry `[Path: <canonical path>]`.
 - **REQ-020**: MUST provide `--info [Path]` rendering per-parameter type, constraints, description, default, and complete shell-valid `--set` and `--unset` command examples.
 - **REQ-021**: MUST provide `--print-raw` writing the exact bytes of the global configuration JSON file to stdout without reformatting or added text.
@@ -276,6 +277,10 @@ Options:
 - **REQ-046**: MUST treat version-check cache persistence as best effort: a failing cache write MUST NOT raise, print, or alter exit status and argument dispatch (refines REQ-010, A-06).
 - **REQ-047**: MUST compare versions by tolerant tuple parsing: every dot-separated component contributes its leading integer digits; missing or non-numeric prefixes evaluate as zero.
 - **REQ-048**: MUST execute the identical CLI dispatch of the `githubtemplateastraluv` entry point when invoked through the deployed `templateastraluv` short-name executable.
+- **REQ-049**: MUST keep the persisted configuration file containing exclusively schema entries whose current value differs from the schema default.
+- **REQ-050**: MUST remove from the persisted configuration payload every parameter whose value equals its schema default before every configuration file write.
+- **REQ-051**: MUST remove from the persisted configuration payload every section whose parameters all equal their schema defaults before every configuration file write.
+- **REQ-052**: MUST treat schema-known sections and parameters absent from the configuration file as holding their schema default values.
 
 ## 4. Test Requirements
 - **TST-001**: MUST verify REQ-001 and REQ-039 by running the CLI with no arguments and with `--help`; pass iff stdout equals the 3.2 template with `(x.y.z)` replaced by the current version.
@@ -312,3 +317,5 @@ Options:
 - **TST-032**: MUST verify DES-059 and DES-060 by parsing `README.md`: upgrade rows match the mandated argv and no schema-empty or configurable-color claims remain.
 - **TST-033**: MUST verify `scripts/rename-me.sh` by copying the template working tree into `temp/`, executing the copied script with all seven parameters, and asserting exit status 0.
 - **TST-034**: MUST pass TST-033 iff no source string remains in any copied text-file content, filename, or path (binary archives excluded from content scanning).
+- **TST-035**: MUST verify REQ-049, REQ-050, and REQ-051 in an isolated `$HOME` by asserting `--set` of a default value removes the persisted entry, `--unset` removes restored entries, and fully-default sections disappear from the file.
+- **TST-036**: MUST verify REQ-052 and DES-074 by asserting bootstrap initializes an empty JSON object, strict validation accepts partial payloads, and `--get` resolves absent entries to schema defaults.

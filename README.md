@@ -183,7 +183,7 @@ Executes `uv tool uninstall githubtemplateastraluv` on Linux; on any other platf
 
 ### Configuration file
 
-The global configuration lives at `$HOME/.config/githubtemplateastraluv/config.json`. It is created with the schema defaults on the first configuration command and every update is validated against the schema and persisted atomically (the previous file is preserved if any step fails).
+The global configuration lives at `$HOME/.config/githubtemplateastraluv/config.json`. It is created as an empty JSON object on the first configuration command, contains only the entries that differ from the schema defaults, and every update is validated against the schema and persisted atomically (the previous file is preserved if any step fails).
 
 ### Configuration commands
 

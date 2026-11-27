@@ -8,7 +8,11 @@
 #          config.json`. Version-check transport parameters (endpoint,
 #          timeout, idle-delays) stay hardcoded (CTN-008) and are not part
 #          of the schema; the automatic-check enable/disable switch is
-#          schema state (REQ-042). Handlers emit valid
+#          schema state (REQ-042). The persisted file holds exclusively
+#          non-default entries (REQ-049): writes prune default-equal
+#          parameters and emptied sections (REQ-050, REQ-051) and
+#          schema-known entries absent from the file resolve to their
+#          defaults (REQ-052). Handlers emit valid
 #          output on stdout only, report failures on stderr with exit
 #          status 1, and never mutate state on rejected operations
 #          (REQ-023).
@@ -178,6 +182,8 @@ def default_config() -> dict[str, dict[str, str]]:
 
     @return {dict[str, dict[str, str]]} Section token to parameter token
             to default value, in canonical schema order.
+    @note The persisted file never stores this full form; persistence
+          holds only non-default entries (REQ-049).
     """
     return {
         section.token: {param.token: param.default for param in section.params}
@@ -185,55 +191,88 @@ def default_config() -> dict[str, dict[str, str]]:
     }
 
 
-def validate_config(payload: Any) -> None:
-    """@brief Validate a complete configuration against the schema.
+def prune_defaults(payload: dict[str, Any]) -> dict[str, dict[str, str]]:
+    """@brief Prune default-equal entries from a validated payload.
 
-    @details Strict validation: JSON object root, exact section key set,
-             exact parameter key set per section, and Selection values
-             restricted to the parameter enum. Raises without mutation;
-             callers reject the operation on error.
+    @details Walks the schema in canonical order, keeping only parameters
+             whose current value differs from the schema default
+             (REQ-050) and dropping sections left without entries
+             (REQ-051); the result is the canonical persistable form
+             holding exclusively non-default entries (REQ-049). The
+             input payload is never mutated.
+    @param payload {dict[str, Any]} Schema-validated configuration
+            payload (full or partial form).
+    @return {dict[str, dict[str, str]]} Section token to parameter token
+            to non-default value, in canonical schema order; `{}` when
+            every value equals its default.
+    @satisfies REQ-049 REQ-050 REQ-051
+    """
+    pruned: dict[str, dict[str, str]] = {}
+    for section in SCHEMA:
+        branch = payload.get(section.token)
+        if not isinstance(branch, dict):
+            continue
+        kept = {
+            param.token: branch[param.token]
+            for param in section.params
+            if param.token in branch and branch[param.token] != param.default
+        }
+        if kept:
+            pruned[section.token] = kept
+    return pruned
+
+
+def validate_config(payload: Any) -> None:
+    """@brief Validate a configuration payload against the schema.
+
+    @details Strict subset validation (REQ-052): JSON object root; every
+             present section key must be a schema-known token; every
+             present section value must be a JSON object whose keys are
+             schema-known parameter tokens and whose values are strings
+             within the parameter enum. Schema-known entries absent from
+             the payload resolve to their defaults elsewhere (REQ-052);
+             the payload never enumerates defaults because the persisted
+             form holds only non-default entries (REQ-049). Raises
+             without mutation; callers reject the operation on error.
     @param payload {Any} Parsed JSON configuration payload.
     @return {None}
-    @throws {ConfigError} On root-type, section-key, parameter-key, or
-            enum-membership mismatch; message names the offending path.
+    @throws {ConfigError} On root-type mismatch, unknown section or
+            parameter keys, non-object section values, or
+            enum-membership mismatch; the message names the offending
+            path.
+    @satisfies REQ-049 REQ-052
     """
     if not isinstance(payload, dict):
         raise ConfigError(
             "configuration root must be a JSON object; "
             f"got {type(payload).__name__}"
         )
-    expected_sections = set(_SECTIONS_BY_TOKEN)
-    actual_sections = set(payload)
-    unknown = sorted(actual_sections - expected_sections)
-    missing = sorted(expected_sections - actual_sections)
-    if unknown or missing:
+    unknown_sections = sorted(set(payload) - set(_SECTIONS_BY_TOKEN))
+    if unknown_sections:
         raise ConfigError(
-            "configuration sections mismatch"
-            + (f"; unknown sections: {unknown}" if unknown else "")
-            + (f"; missing sections: {missing}" if missing else "")
+            f"unknown configuration sections: {unknown_sections}"
         )
     for section in SCHEMA:
-        branch = payload[section.token]
+        branch = payload.get(section.token)
+        if branch is None:
+            continue
         if not isinstance(branch, dict):
             raise ConfigError(
                 f"section {section.token} must be a JSON object; "
                 f"got {type(branch).__name__}"
             )
-        expected_params = {param.token for param in section.params}
-        actual_params = set(branch)
-        unknown_params = sorted(actual_params - expected_params)
-        missing_params = sorted(expected_params - actual_params)
-        if unknown_params or missing_params:
+        known_params = {param.token: param for param in section.params}
+        unknown_params = sorted(set(branch) - set(known_params))
+        if unknown_params:
             raise ConfigError(
-                f"section {section.token} parameters mismatch"
-                + (f"; unknown: {unknown_params}" if unknown_params else "")
-                + (f"; missing: {missing_params}" if missing_params else "")
+                f"unknown parameters in section {section.token}: "
+                f"{unknown_params}"
             )
-        for param in section.params:
-            value = branch[param.token]
+        for token, value in branch.items():
+            param = known_params[token]
             if not isinstance(value, str) or value not in param.enum:
                 raise ConfigError(
-                    f"invalid value for {section.token}:{param.token}: "
+                    f"invalid value for {section.token}:{token}: "
                     f"{value!r}; allowed values: {', '.join(param.enum)}"
                 )
 
@@ -293,20 +332,25 @@ def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
 
 
 def ensure_bootstrapped() -> None:
-    """@brief Create missing directories and initialize missing defaults.
+    """@brief Create missing directories and initialize the empty file.
 
     @details Applicable configuration commands call this before
-             executing. Never overwrites an existing file, valid or
-             not; strict loaders surface invalid files as errors.
+             executing. A missing configuration file initializes as an
+             empty JSON object `{}` holding no entries: schema defaults
+             are never persisted because the file stores exclusively
+             non-default entries (DES-074, REQ-049, REQ-052). Never
+             overwrites an existing file, valid or not; strict loaders
+             surface invalid files as errors.
     @return {None}
     @throws {ConfigError} When directories cannot be created or the
-            default file cannot be written.
+            initial file cannot be written.
+    @satisfies DES-074 REQ-049
     """
     path = config_path()
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         if not path.exists():
-            atomic_write_json(path, default_config())
+            atomic_write_json(path, {})
     except ConfigError:
         raise
     except OSError as error:
@@ -461,17 +505,37 @@ def resolve_segments(path: str) -> tuple[str, ...]:
 
 
 def get_value(payload: dict[str, Any], segments: tuple[str, ...]) -> Any:
-    """@brief Extract the JSON-serializable value at a resolved path.
+    """@brief Extract the resolved value at a path, defaulting absents.
 
-    @param payload {dict[str, Any]} Validated configuration payload.
+    @details Schema-known entries absent from the payload resolve to
+             their schema default (REQ-052); depth 1 returns the
+             default-completed section object, depth 2 the parameter
+             value. The input payload is never mutated.
+    @param payload {dict[str, Any]} Validated configuration payload
+            (full or partial form).
     @param segments {tuple[str, ...]} Tokens from `resolve_segments`.
     @return {Any} Section dict copy for depth 1; parameter string for
             depth 2.
+    @throws {ConfigError} On a defensive mismatch between the resolved
+            segments and the schema (unreachable for `resolve_segments`
+            output).
+    @satisfies REQ-052
     """
-    section = payload[segments[0]]
+    section = _SECTIONS_BY_TOKEN[segments[0]]
+    branch = payload.get(segments[0])
+    if not isinstance(branch, dict):
+        branch = {}
     if len(segments) == 1:
-        return dict(section)
-    return section[segments[1]]
+        return {
+            param.token: branch.get(param.token, param.default)
+            for param in section.params
+        }
+    param = section.param(segments[1])
+    if param is None:
+        raise ConfigError(
+            f"unknown parameter in path {':'.join(segments)!r}"
+        )
+    return branch.get(param.token, param.default)
 
 
 def parse_value(spec: ParamSpec, raw: str) -> str:
@@ -503,15 +567,20 @@ def set_value(
 
     @details Depth 1 replaces the whole section with a parsed
              schema-compatible JSON object; depth 2 parses the operand
-             into the parameter schema type (REQ-017). The resulting
-             configuration is validated in full before returning; the
-             input payload is never mutated.
+             into the parameter schema type (REQ-017). Absent schema
+             sections start from their schema defaults (REQ-052). The
+             resulting configuration is validated in full, then pruned
+             to the non-default persistable form (REQ-049, REQ-050,
+             REQ-051) before returning; the input payload is never
+             mutated.
     @param payload {dict[str, Any]} Current validated configuration.
     @param path {str} Raw canonical target path.
     @param raw {str} Raw value operand from the CLI.
-    @return {dict[str, dict[str, str]]} New validated configuration.
+    @return {dict[str, dict[str, str]]} New validated configuration
+            holding only non-default entries.
     @throws {ConfigError} On path, JSON, type, enum, or whole-config
             validation failure; no persisted mutation occurs.
+    @satisfies REQ-017 REQ-049 REQ-050 REQ-051 REQ-052
     """
     segments = resolve_segments(path)
     updated = {token: dict(branch) for token, branch in payload.items()}
@@ -529,9 +598,11 @@ def set_value(
         param = _SECTIONS_BY_TOKEN[segments[0]].param(segments[1])
         if param is None:
             raise ConfigError(f"unknown parameter in path {path!r}")
-        updated[segments[0]][param.token] = parse_value(param, raw)
+        updated.setdefault(segments[0], {})[param.token] = parse_value(
+            param, raw
+        )
     validate_config(updated)
-    return updated
+    return prune_defaults(updated)
 
 
 def unset_value(
@@ -541,13 +612,18 @@ def unset_value(
     """@brief Apply a `--unset` restore-to-default mutation.
 
     @details Depth 1 restores all section parameter defaults; depth 2
-             restores one parameter default (REQ-018). The resulting
-             configuration is validated before returning; the input
-             payload is never mutated.
+             restores one parameter default (REQ-018). Absent schema
+             sections start from their schema defaults (REQ-052). The
+             resulting configuration is validated, then pruned to the
+             non-default persistable form: restored entries leave the
+             payload (REQ-049, REQ-050, REQ-051); the input payload is
+             never mutated.
     @param payload {dict[str, Any]} Current validated configuration.
     @param path {str} Raw canonical target path.
-    @return {dict[str, dict[str, str]]} New validated configuration.
+    @return {dict[str, dict[str, str]]} New validated configuration
+            holding only non-default entries.
     @throws {ConfigError} On path resolution or validation failure.
+    @satisfies REQ-018 REQ-049 REQ-050 REQ-051 REQ-052
     """
     segments = resolve_segments(path)
     updated = {token: dict(branch) for token, branch in payload.items()}
@@ -555,9 +631,11 @@ def unset_value(
     if len(segments) == 1:
         updated[segments[0]] = dict(defaults[segments[0]])
     else:
-        updated[segments[0]][segments[1]] = defaults[segments[0]][segments[1]]
+        updated.setdefault(segments[0], {})[segments[1]] = defaults[
+            segments[0]
+        ][segments[1]]
     validate_config(updated)
-    return updated
+    return prune_defaults(updated)
 
 
 def operand_values(
@@ -647,11 +725,13 @@ def handle_get(args: list[str]) -> int:
     """@brief Execute `--get Path` (REQ-016).
 
     @details Bootstraps storage, loads strictly, resolves the canonical
-             path, and prints the resolved value as one valid JSON
-             document on stdout without decoration (JSON-quoted strings,
-             objects for sections).
+             path with schema-known entries absent from the file resolved
+             to their schema defaults (REQ-052), and prints the resolved
+             value as one valid JSON document on stdout without
+             decoration (JSON-quoted strings, objects for sections).
     @param args {list[str]} CLI argument tokens excluding program name.
     @return {int} 0 on success; 1 with a stderr diagnostic on failure.
+    @satisfies REQ-016 REQ-052
     """
     try:
         (path,) = operand_values(args, "--get", 1, 1)
@@ -668,10 +748,13 @@ def handle_set(args: list[str]) -> int:
     """@brief Execute `--set Path Value` (REQ-017, DES-014).
 
     @details Parses Value into the schema type, validates the entire
-             resulting configuration, and persists atomically; success is
-             silent and any rejection leaves the stored file untouched.
+             resulting configuration, prunes default-equal entries
+             (REQ-049, REQ-050, REQ-051), and persists the non-default
+             delta atomically; success is silent and any rejection leaves
+             the stored file untouched.
     @param args {list[str]} CLI argument tokens excluding program name.
     @return {int} 0 on success; 1 with a stderr diagnostic on failure.
+    @satisfies REQ-017 REQ-049 DES-014
     """
     try:
         path, raw = operand_values(args, "--set", 2, 2)
@@ -688,9 +771,12 @@ def handle_unset(args: list[str]) -> int:
     """@brief Execute `--unset Path` (REQ-018, DES-014).
 
     @details Restores the targeted parameter or section to schema
-             defaults and persists atomically; success is silent.
+             defaults, prunes the restored default-equal entries from the
+             persisted payload (REQ-049, REQ-050, REQ-051), and persists
+             atomically; success is silent.
     @param args {list[str]} CLI argument tokens excluding program name.
     @return {int} 0 on success; 1 with a stderr diagnostic on failure.
+    @satisfies REQ-018 REQ-049 DES-014
     """
     try:
         (path,) = operand_values(args, "--unset", 1, 1)
