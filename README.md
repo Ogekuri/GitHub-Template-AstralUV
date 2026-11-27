@@ -18,8 +18,9 @@
 A Python CLI application shipped as an Astral uv/uvx-installable tool with
 PyPI OIDC Trusted Publishing release automation. It provides management
 commands for upgrade, uninstall, and version reporting; an automatic
-new-version check throttled by an idle-time cache; self-upgrade from PyPI or
-from the latest GitHub tag via <code>--develop</code>; a dual-source version
+new-version check throttled by an idle-time cache; self-upgrade from PyPI, with
+forced full reinstallation via <code>--force</code> or from the GitHub
+<code>develop</code> branch head via <code>--develop</code>; a dual-source version
 report (installed / PyPI / GitHub); and a JSON configuration CLI
 (<code>version_check:disable-version-check</code>) with schema validation
 and atomic persistence.
@@ -43,9 +44,9 @@ and atomic persistence.
 - **Published on PyPI**: install with `uv tool install githubtemplateastraluv`, or run on-the-fly with `uvx githubtemplateastraluv`.
 - **Dual-source version report** (`--ver` / `--version`): installed, latest PyPI, and latest GitHub versions in aligned columns.
 - **Automatic new-version check** before every run, throttled by an idle-time cache so no redundant network calls are made.
-- **Self-upgrade** from PyPI (`--upgrade`), forced full re-download (`--force`), or the latest GitHub tagged release (`--develop`).
+- **Self-upgrade** from PyPI (`--upgrade`), with forced full re-download (`--force`) or from the GitHub `develop` branch head (`--develop`).
 - **One-command removal** (`--uninstall`) — on non-Linux systems the exact manual command is printed instead.
-- **Colored console notifications** (bright green for availability, bright red for errors), hardcoded in the embedded internal color JSON of `src/githubtemplateastraluv/colors.py`.
+- **Colored console notifications** (bright green for availability, bright red for errors) — hardcoded and not configurable.
 - **Configuration CLI** (`--get`, `--set`, `--unset`, `--print`, `--info`, `--print-raw`) with schema validation and atomic persistence.
 - **Release automation**: a GitHub release for every version tag and OIDC Trusted Publishing to PyPI for `master` tags.
 
@@ -73,7 +74,7 @@ and atomic persistence.
 - **Python >= 3.11**.
 - **Astral `uv`** — required to install, upgrade, uninstall, or run the tool locally from the repository.
 - **`git`** — required only to install the development source with `--develop`.
-- **Network access** — outbound HTTPS to `pypi.org` (version check, upgrades) and `api.github.com` (latest-release query for the `--ver` report and `--develop` channel).
+- **Network access** — outbound HTTPS to `pypi.org` (automatic version check, upgrades, `--ver` report), to `api.github.com` (latest-release query of the `--ver` report), and Git access to `github.com` (install/upgrade source of the `--develop` channel).
 - **Linux** — required for the `--upgrade` and `--uninstall` side effects; on any other platform the tool prints a warning and the exact manual command.
 - **ANSI-capable terminal** — required for colored notifications.
 
@@ -107,10 +108,10 @@ A dedicated, non-primary distribution channel hosts intermediate and test
 releases on GitHub: `https://github.com/Ogekuri/GitHub-Template-AstralUV`.
 
 ```bash
-# Install from the GitHub repository
-uv tool install githubtemplateastraluv --force --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git
+# Install from the GitHub develop branch head
+uv tool install githubtemplateastraluv --reinstall --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git@develop
 
-# Upgrade to the latest GitHub tagged release (tagged on any branch)
+# Upgrade to the GitHub develop branch head
 githubtemplateastraluv --upgrade --develop
 
 # Forced full re-download and reinstallation variants
@@ -129,7 +130,7 @@ branch. The `--ver` report shows the GitHub release channel in the
 ```
 
 The launcher resolves the repository root and delegates to
-`uv run --project <root> python -m githubtemplateastraluv`.
+`uv run --frozen --project <root> python -m githubtemplateastraluv`.
 
 ## Command reference
 
@@ -241,18 +242,22 @@ diagnostic on stderr, and emits nothing on stdout.
 
 ### Notification colors (hardcoded)
 
-Notification colors are not configurable. All colors live in one embedded
-internal JSON document (`COLOR_CONFIG_JSON`) inside
-`src/githubtemplateastraluv/colors.py`:
+Notification colors are not configurable: no CLI option, file, or
+environment variable can alter them. They are hardcoded in an embedded
+internal JSON document of the application:
 
-- `notifications` assigns the new-version color `bright_green` (ANSI SGR 92)
-  and the error color `bright_red` (ANSI SGR 91).
+- The new-version color is `bright_green` (ANSI SGR 92) and the error color
+  is `bright_red` (ANSI SGR 91).
 - `palette` maps every color token to its ANSI SGR prefix: `bright_green`
   (92), `bright_red` (91), `bright_yellow` (93), `bright_blue` (94),
   `bright_magenta` (95), `bright_cyan` (96), `bright_white` (97).
 
-Both colors drive the automatic version-check notifications; no CLI option,
-file, or environment variable can alter them.
+Both colors drive the automatic version-check notifications.
+
+When the configuration switch `version_check:disable-version-check` is set
+to `yes`, the automatic check is skipped entirely (no request, no cache
+write); an absent, unreadable, malformed, or non-object configuration file
+keeps the check enabled.
 
 # Documentation
 
@@ -269,7 +274,8 @@ argument parsing. The check is throttled by an idle-time cache:
   failed check (HTTP 429, 503, timeout, network error) reports a bright red
   error note and backs off with an 86400-second idle-delay.
 - `--ver` and `--version` bypass the gate and always query both sources
-  (PyPI JSON API and `https://api.github.com/repos/Ogekuri/GitHub-Template-AstralUV/releases/latest`).
+  (PyPI JSON API and `https://api.github.com/repos/Ogekuri/GitHub-Template-AstralUV/releases/latest`),
+  regardless of the `disable-version-check` value.
 
 ## Repository tooling scripts
 
