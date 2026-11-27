@@ -200,6 +200,10 @@ Assumptions (non-normative; reversible interpretations of unspecified details):
 - **DES-067**: MUST substitute program-name occurrences inside `.github/workflows/release-pypi.yml` with `publishname` before the global `program` substitution (A-15).
 - **DES-068**: MUST terminate non-zero with a diagnostic when any substitution, rename, or residual verification step fails.
 - **DES-069**: MUST verify after renaming that no active source string remains in any processed content, filename, or path, and MUST remove `scripts/rename-me.sh` only after full success.
+- **DES-070**: MUST start every `README.md` top-level chapter (each section opened by an H1 `#` heading) with one or more `TODO:` notes as the chapter's first content, directly following the heading.
+- **DES-071**: MUST keep every `README.md` chapter `TODO:` note as a completion instruction describing how to complete the chapter with the correct final data.
+- **DES-072**: MUST NOT hard-wrap `README.md` prose; each paragraph, list-item, and blockquote text unit MUST occupy exactly one source line.
+- **DES-073**: MUST limit `README.md` source line breaks to structural boundaries: headings, list items, table rows, fenced code lines, HTML block tags, self-contained HTML element lines, blockquote lines, and blank separators.
 
 ### 3.2 Functions
 - **REQ-001**: MUST print the verbatim English help screen (template below) when invoked with `--help` or with no arguments.

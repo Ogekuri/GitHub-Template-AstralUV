@@ -1,8 +1,5 @@
 > [!CAUTION]
-> **STRICTLY EXPERIMENTAL**: this project is a proof-of-concept template under
-> active development. Interfaces, commands, packaging metadata, and release
-> channels may change at any time without notice. Do not rely on it for
-> production workloads.
+> **STRICTLY EXPERIMENTAL**: this project is a proof-of-concept template under active development. Interfaces, commands, packaging metadata, and release channels may change at any time without notice. Do not rely on it for production workloads.
 
 # githubtemplateastraluv / templateastraluv (0.0.9)
 
@@ -18,29 +15,15 @@ TODO: Update the badges and descriptions in this section to reflect the final ap
   <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json" alt="uv">
 </p>
 <p align="center">
-<strong>GitHub template for Astral-UV apps published on PyPI.</strong><br>
-A Python CLI application shipped as an Astral uv/uvx-installable tool with
-PyPI OIDC Trusted Publishing release automation. It provides management
-commands for upgrade, uninstall, and version reporting; an automatic
-new-version check throttled by an idle-time cache; self-upgrade from PyPI, with
-forced full reinstallation via <code>--force</code> or from the GitHub
-<code>develop</code> branch head via <code>--develop</code>; a dual-source version
-report (installed / PyPI / GitHub); and a JSON configuration CLI
-(<code>version_check:disable-version-check</code>) with schema validation
-and atomic persistence.
+<strong>GitHub template for Astral-UV apps published on PyPI.</strong><br> A Python CLI application shipped as an Astral uv/uvx-installable tool with PyPI OIDC Trusted Publishing release automation. It provides management commands for upgrade, uninstall, and version reporting; an automatic new-version check throttled by an idle-time cache; self-upgrade from PyPI, with forced full reinstallation via <code>--force</code> or from the GitHub <code>develop</code> branch head via <code>--develop</code>; a dual-source version report (installed / PyPI / GitHub); and a JSON configuration CLI (<code>version_check:disable-version-check</code>) with schema validation and atomic persistence.
 </p>
 
 <p align="center">
-  <a href="#feature-highlights">Feature Highlights</a> |
-  <a href="#quick-start">Quick Start</a> |
-  <a href="#requirements">Requirements</a> |
-  <a href="#users-guide">User's Guide</a> |
-  <a href="#acknowledgments">Acknowledgments</a>
+  <a href="#feature-highlights">Feature Highlights</a> | <a href="#quick-start">Quick Start</a> | <a href="#requirements">Requirements</a> | <a href="#users-guide">User's Guide</a> | <a href="#acknowledgments">Acknowledgments</a>
 </p>
 
 <p align="center">
-🚧 <strong>STAGE:</strong> PRE-ALPHA 📝 - Proof-of-Concept 🏗️ 🚧<br>
-⚠️ <strong>IMPORTANT NOTICE</strong>: Created with <a href="https://github.com/Ogekuri/PI-useReq"><strong>PI-useReq/pi-usereq</strong></a> 🤖✨ ⚠️
+🚧 <strong>STAGE:</strong> PRE-ALPHA 📝 - Proof-of-Concept 🏗️ 🚧<br> ⚠️ <strong>IMPORTANT NOTICE</strong>: Created with <a href="https://github.com/Ogekuri/PI-useReq"><strong>PI-useReq/pi-usereq</strong></a> 🤖✨ ⚠️
 </p>
 
 # Feature Highlights
@@ -66,9 +49,7 @@ TODO: Complete this section with a paragraph with the information needed for the
    uv tool install githubtemplateastraluv
    ```
 
-2. **Configure** — optional: the application works out of the box with
-   sensible defaults (bright green availability notes, bright red error
-   notes). Customization is described in the [User's Guide](#users-guide).
+2. **Configure** — optional: the application works out of the box with sensible defaults (bright green availability notes, bright red error notes). Customization is described in the [User's Guide](#users-guide).
 
 3. **Execute**:
 
@@ -116,8 +97,7 @@ uvx githubtemplateastraluv --ver
 
 ## Install and upgrade from GitHub (non-primary development channel)
 
-A dedicated, non-primary distribution channel hosts intermediate and test
-releases on GitHub: `https://github.com/Ogekuri/GitHub-Template-AstralUV`.
+A dedicated, non-primary distribution channel hosts intermediate and test releases on GitHub: `https://github.com/Ogekuri/GitHub-Template-AstralUV`.
 
 ```bash
 # Install from the GitHub develop branch head
@@ -131,9 +111,7 @@ githubtemplateastraluv --upgrade --force
 githubtemplateastraluv --upgrade --develop --force
 ```
 
-`--upgrade --develop` always installs the head of the GitHub `develop`
-branch. The `--ver` report shows the GitHub release channel in the
-`Latest @ GitHub` row.
+`--upgrade --develop` always installs the head of the GitHub `develop` branch. The `--ver` report shows the GitHub release channel in the `Latest @ GitHub` row.
 
 ## Run locally from the repository
 
@@ -141,13 +119,11 @@ branch. The `--ver` report shows the GitHub release channel in the
 ./scripts/templateastraluv.sh --help
 ```
 
-The launcher resolves the repository root and delegates to
-`uv run --frozen --project <root> python -m githubtemplateastraluv`.
+The launcher resolves the repository root and delegates to `uv run --frozen --project <root> python -m githubtemplateastraluv`.
 
 ## Command reference
 
-The full help screen (printed by `--help` or by running the tool with no
-arguments):
+The full help screen (printed by `--help` or by running the tool with no arguments):
 
 ```text
 Usage: githubtemplateastraluv [command] [options] (0.0.9)
@@ -174,8 +150,7 @@ Options:
 
 ### Version report (`--ver` / `--version`)
 
-Prints the three-row report with aligned version columns and always refreshes
-the source queries, bypassing the idle-time gate:
+Prints the three-row report with aligned version columns and always refreshes the source queries, bypassing the idle-time gate:
 
 ```text
 Current Installed : X1.Y1.Z1
@@ -183,9 +158,7 @@ Latest @ PyPI     : X2.Y2.Z2
 Latest @ GitHub   : X3.Y3.Z3
 ```
 
-A failed source prints `unknown (<reason>)` in place of the version, with a
-bright red note naming that source. The GitHub row strips the `v` prefix from
-the latest release tag.
+A failed source prints `unknown (<reason>)` in place of the version, with a bright red note naming that source. The GitHub row strips the `v` prefix from the latest release tag.
 
 ### `--upgrade` variants (Linux)
 
@@ -196,10 +169,7 @@ the latest release tag.
 | `--upgrade --develop` | `uv tool install githubtemplateastraluv --reinstall --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git@develop` |
 | `--upgrade --develop --force` | `uv tool install githubtemplateastraluv --force --reinstall --refresh --from git+https://github.com/Ogekuri/GitHub-Template-AstralUV.git@develop` |
 
-On non-Linux operating systems nothing is executed: the tool prints a warning
-and the matching manual command from the table. `--develop` and `--force` are
-accepted exclusively as `--upgrade` modifiers; any other combination falls
-back to the normal dispatch behavior.
+On non-Linux operating systems nothing is executed: the tool prints a warning and the matching manual command from the table. `--develop` and `--force` are accepted exclusively as `--upgrade` modifiers; any other combination falls back to the normal dispatch behavior.
 
 ### `--uninstall` (Linux)
 
@@ -207,25 +177,17 @@ back to the normal dispatch behavior.
 githubtemplateastraluv --uninstall
 ```
 
-Executes `uv tool uninstall githubtemplateastraluv` on Linux; on any other
-platform it prints a warning and the manual command
-`uv tool uninstall githubtemplateastraluv`.
+Executes `uv tool uninstall githubtemplateastraluv` on Linux; on any other platform it prints a warning and the manual command `uv tool uninstall githubtemplateastraluv`.
 
 ## Configuration
 
 ### Configuration file
 
-The global configuration lives at
-`$HOME/.config/githubtemplateastraluv/config.json`. It is created with the
-schema defaults on the first configuration command and every update is
-validated against the schema and persisted atomically (the previous file is
-preserved if any step fails).
+The global configuration lives at `$HOME/.config/githubtemplateastraluv/config.json`. It is created with the schema defaults on the first configuration command and every update is validated against the schema and persisted atomically (the previous file is preserved if any step fails).
 
 ### Configuration commands
 
-Configuration paths are case-sensitive, colon-separated canonical tokens
-(`Section`, `Section:Parameter`); the schema defines the `version_check`
-section holding the `disable-version-check` Selection parameter.
+Configuration paths are case-sensitive, colon-separated canonical tokens (`Section`, `Section:Parameter`); the schema defines the `version_check` section holding the `disable-version-check` Selection parameter.
 
 | Command | Behavior |
 | --- | --- |
@@ -249,27 +211,18 @@ githubtemplateastraluv --set version_check:disable-version-check yes
 githubtemplateastraluv --unset version_check:disable-version-check
 ```
 
-On any configuration failure the tool exits with code `1`, prints a
-diagnostic on stderr, and emits nothing on stdout.
+On any configuration failure the tool exits with code `1`, prints a diagnostic on stderr, and emits nothing on stdout.
 
 ### Notification colors (hardcoded)
 
-Notification colors are not configurable: no CLI option, file, or
-environment variable can alter them. They are hardcoded in an embedded
-internal JSON document of the application:
+Notification colors are not configurable: no CLI option, file, or environment variable can alter them. They are hardcoded in an embedded internal JSON document of the application:
 
-- The new-version color is `bright_green` (ANSI SGR 92) and the error color
-  is `bright_red` (ANSI SGR 91).
-- `palette` maps every color token to its ANSI SGR prefix: `bright_green`
-  (92), `bright_red` (91), `bright_yellow` (93), `bright_blue` (94),
-  `bright_magenta` (95), `bright_cyan` (96), `bright_white` (97).
+- The new-version color is `bright_green` (ANSI SGR 92) and the error color is `bright_red` (ANSI SGR 91).
+- `palette` maps every color token to its ANSI SGR prefix: `bright_green` (92), `bright_red` (91), `bright_yellow` (93), `bright_blue` (94), `bright_magenta` (95), `bright_cyan` (96), `bright_white` (97).
 
 Both colors drive the automatic version-check notifications.
 
-When the configuration switch `version_check:disable-version-check` is set
-to `yes`, the automatic check is skipped entirely (no request, no cache
-write); an absent, unreadable, malformed, or non-object configuration file
-keeps the check enabled.
+When the configuration switch `version_check:disable-version-check` is set to `yes`, the automatic check is skipped entirely (no request, no cache write); an absent, unreadable, malformed, or non-object configuration file keeps the check enabled.
 
 # Documentation
 
@@ -277,19 +230,12 @@ TODO: Complete this section with all information that cannot be placed in the ot
 
 ## Automatic version check
 
-On every invocation the tool runs an online new-version check **before**
-argument parsing. The check is throttled by an idle-time cache:
+On every invocation the tool runs an online new-version check **before** argument parsing. The check is throttled by an idle-time cache:
 
 - Cache file: `$HOME/.cache/githubtemplateastraluv/check_version_idle-time.json`.
-- The HTTPS request to `https://pypi.org/pypi/githubtemplateastraluv/json` runs
-  only when the cache file is absent or the cached idle-time has elapsed
-  (2-second timeout).
-- A successful check refreshes the cache with a 3600-second idle-delay; a
-  failed check (HTTP 429, 503, timeout, network error) reports a bright red
-  error note and backs off with an 86400-second idle-delay.
-- `--ver` and `--version` bypass the gate and always query both sources
-  (PyPI JSON API and `https://api.github.com/repos/Ogekuri/GitHub-Template-AstralUV/releases/latest`),
-  regardless of the `disable-version-check` value.
+- The HTTPS request to `https://pypi.org/pypi/githubtemplateastraluv/json` runs only when the cache file is absent or the cached idle-time has elapsed (2-second timeout).
+- A successful check refreshes the cache with a 3600-second idle-delay; a failed check (HTTP 429, 503, timeout, network error) reports a bright red error note and backs off with an 86400-second idle-delay.
+- `--ver` and `--version` bypass the gate and always query both sources (PyPI JSON API and `https://api.github.com/repos/Ogekuri/GitHub-Template-AstralUV/releases/latest`), regardless of the `disable-version-check` value.
 
 ## Repository tooling scripts
 
@@ -300,12 +246,7 @@ argument parsing. The check is throttled by an idle-time cache:
 | `scripts/clean.sh` | Removes every repository-internal execution-generated artifact and restores the canonical startup state. |
 | `scripts/pre-release-check.sh` | Fail-fast release verification (syntax, compileall, pytest, out-of-tree build, artifact validation) with baseline-guarded cleanup. |
 
-`scripts/clean.sh` removes `__pycache__/` and `*.egg-info/` at any depth,
-the `.pytest_cache/`, `.ruff_cache/`, `.mypy_cache/`, `build/`, and
-`.venv/` directories, and the `.coverage`/`.coverage.*` data files. It is
-idempotent (absent targets are a successful no-op), never touches tracked
-files, untracked user files, `$HOME` application data, or the versioned
-release artifacts in `dist/`, and never runs destructive git commands.
+`scripts/clean.sh` removes `__pycache__/` and `*.egg-info/` at any depth, the `.pytest_cache/`, `.ruff_cache/`, `.mypy_cache/`, `build/`, and `.venv/` directories, and the `.coverage`/`.coverage.*` data files. It is idempotent (absent targets are a successful no-op), never touches tracked files, untracked user files, `$HOME` application data, or the versioned release artifacts in `dist/`, and never runs destructive git commands.
 
 ```bash
 # Remove all execution-generated temporary artifacts
@@ -317,22 +258,11 @@ release artifacts in `dist/`, and never runs destructive git commands.
 
 ## Release automation
 
-For every canonical version tag `vX.Y.Z` the release workflow
-(`.github/workflows/release-pypi.yml`) creates a GitHub release from the
-`dist/` artifacts present at the tagged commit and, when the tag belongs to
-`master`, publishes them to PyPI through OIDC Trusted Publishing. No build
-step runs inside the workflow; runners are pinned to `ubuntu-24.04`.
+For every canonical version tag `vX.Y.Z` the release workflow (`.github/workflows/release-pypi.yml`) creates a GitHub release from the `dist/` artifacts present at the tagged commit and, when the tag belongs to `master`, publishes them to PyPI through OIDC Trusted Publishing. No build step runs inside the workflow; runners are pinned to `ubuntu-24.04`.
 
 ## Using this repository as a template
 
-This repository doubles as the GitHub template
-[`Ogekuri/GitHub-Template-AstralUV`](https://github.com/Ogekuri/GitHub-Template-AstralUV)
-for new Astral-UV applications. Template initialization extracts a skeleton
-bundle into the working directory and resolves seven keywords
-(`%AUTHOR%`, `%DESCRIPTION%`, `%PROGRAM%`, `%SHORTNAME%`, `%SRCDIR%`,
-`%OWNER%`, `%REPOSITORY%`) across the repository files, then renames the
-skeleton script and package directories to the substituted names. The full
-procedure is specified in `usereq/docs/REQUIREMENTS.md`.
+This repository doubles as the GitHub template [`Ogekuri/GitHub-Template-AstralUV`](https://github.com/Ogekuri/GitHub-Template-AstralUV) for new Astral-UV applications. Template initialization extracts a skeleton bundle into the working directory and resolves seven keywords (`%AUTHOR%`, `%DESCRIPTION%`, `%PROGRAM%`, `%SHORTNAME%`, `%SRCDIR%`, `%OWNER%`, `%REPOSITORY%`) across the repository files, then renames the skeleton script and package directories to the substituted names. The full procedure is specified in `usereq/docs/REQUIREMENTS.md`.
 
 ## Development and testing
 
@@ -344,17 +274,13 @@ uv run pytest
 ./scripts/pre-release-check.sh
 ```
 
-The test suite covers the help screen, version report, management-command
-argv variants, the gated version check and its cache, the configuration CLI,
-the release-workflow contract, and the packaging artifacts.
+The test suite covers the help screen, version report, management-command argv variants, the gated version check and its cache, the configuration CLI, the release-workflow contract, and the packaging artifacts.
 
 # License
 
 TODO: Review all information regarding the application's usage license.
 
-This project is licensed under the **GNU General Public License v3.0 only**
-(SPDX identifier `GPL-3.0-only`), as declared in `pyproject.toml`.
-The full license text is available in the [`LICENSE`](LICENSE) file.
+This project is licensed under the **GNU General Public License v3.0 only** (SPDX identifier `GPL-3.0-only`), as declared in `pyproject.toml`. The full license text is available in the [`LICENSE`](LICENSE) file.
 
 Copyright (c) Francesco Rolando.
 
