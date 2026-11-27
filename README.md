@@ -6,6 +6,10 @@
 
 # githubtemplateastraluv / templateastraluv (0.0.9)
 
+TODO: Once you have renamed the template using scripts/rename-me.sh, update and complete this README.md following the TODO instructions.
+
+TODO: Update the badges and descriptions in this section to reflect the final application's purpose and functionality, without changing the formatting or structure. Keep the menu sections as they are.
+
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.11+">
   <img src="https://img.shields.io/badge/license-GPL--3.0-491?style=flat-square" alt="License: GPL-3.0">
@@ -41,6 +45,8 @@ and atomic persistence.
 
 # Feature Highlights
 
+TODO: Complete this section with a brief, easy-to-read paragraph. It must contain a bulleted list summarizing the main features of the application that provide the greatest value to the user.
+
 - **Published on PyPI**: install with `uv tool install githubtemplateastraluv`, or run on-the-fly with `uvx githubtemplateastraluv`.
 - **Dual-source version report** (`--ver` / `--version`): installed, latest PyPI, and latest GitHub versions in aligned columns.
 - **Automatic new-version check** before every run, throttled by an idle-time cache so no redundant network calls are made.
@@ -51,6 +57,8 @@ and atomic persistence.
 - **Release automation**: a GitHub release for every version tag and OIDC Trusted Publishing to PyPI for `master` tags.
 
 # Quick Start
+
+TODO: Complete this section with a paragraph with the information needed for the immediate bring-up of the application to simplify first-time use. The described process must follow the flow: Installation -> Configuration -> Execution. Instructions must be clear and simple: OMIT all optional configuration details (which will go in the User's Guide).
 
 1. **Install** the tool from PyPI:
 
@@ -71,6 +79,8 @@ and atomic persistence.
 
 # Requirements
 
+TODO: Complete this section with a list of prerequisites necessary for installing, configuring, or running the application, including dependencies on third-party applications or external services.
+
 - **Python >= 3.11**.
 - **Astral `uv`** — required to install, upgrade, uninstall, or run the tool locally from the repository.
 - **`git`** — required only to install the development source with `--develop`.
@@ -79,6 +89,8 @@ and atomic persistence.
 - **ANSI-capable terminal** — required for colored notifications.
 
 # User's Guide
+
+TODO: Complete this section with a description of detail in depth the installation, execution, and removal mechanisms of the application (Install/Uninstall). Include in this section all advanced configuration and customization aspects not described in the Quick Start.
 
 ## Install from PyPI (primary method)
 
@@ -261,6 +273,8 @@ keeps the check enabled.
 
 # Documentation
 
+TODO: Complete this section with all information that cannot be placed in the other sections due to requirement incompatibilities (e.g., architectural notes, design, etc.). Information must be well-organized into logical sub-sections (H2, H3), in the most appropriate order and following documentation best practices.
+
 ## Automatic version check
 
 On every invocation the tool runs an online new-version check **before**
@@ -336,6 +350,8 @@ the release-workflow contract, and the packaging artifacts.
 
 # License
 
+TODO: Review all information regarding the application's usage license.
+
 This project is licensed under the **GNU General Public License v3.0 only**
 (SPDX identifier `GPL-3.0-only`), as declared in `pyproject.toml`.
 The full license text is available in the [`LICENSE`](LICENSE) file.
@@ -343,6 +359,8 @@ The full license text is available in the [`LICENSE`](LICENSE) file.
 Copyright (c) Francesco Rolando.
 
 # Acknowledgments
+
+TODO: Complete with acknowledgments to the authors of the projects/programs from which the application was derived and/or drew inspiration.
 
 - **[Astral](https://github.com/astral-sh/uv)** — for `uv` and `uvx`, the packaging and distribution backbone of this template.
 - **[PI-useReq](https://github.com/Ogekuri/PI-useReq)** — the requirement-driven agentic workflow used to specify, implement, and document this repository.
